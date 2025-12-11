@@ -1,0 +1,679 @@
+<!-- templates/dashboard/main.html -->
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Sanctuary Church Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #4a6fa5;
+        --primary-light: #e8eff7;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --info-color: #17a2b8;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --light-color: #f8f9fa;
+        --dark-color: #343a40;
+        --border-radius: 8px;
+        --box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        --transition: all 0.3s ease;
+    }
+    
+    body {
+        background-color: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #2c5282 100%);
+        color: white;
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--box-shadow);
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--box-shadow);
+        border: none;
+        transition: var(--transition);
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+    }
+    
+    .stat-card.warning {
+        border-left-color: var(--warning-color);
+    }
+    
+    .stat-card.success {
+        border-left-color: var(--success-color);
+    }
+    
+    .stat-card.info {
+        border-left-color: var(--info-color);
+    }
+    
+    .stat-card.danger {
+        border-left-color: var(--danger-color);
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-icon.primary {
+        background-color: rgba(74, 111, 165, 0.1);
+        color: var(--primary-color);
+    }
+    
+    .stat-icon.success {
+        background-color: rgba(40, 167, 69, 0.1);
+        color: var(--success-color);
+    }
+    
+    .stat-icon.info {
+        background-color: rgba(23, 162, 184, 0.1);
+        color: var(--info-color);
+    }
+    
+    .stat-icon.warning {
+        background-color: rgba(255, 193, 7, 0.1);
+        color: var(--warning-color);
+    }
+    
+    .organization-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--box-shadow);
+        border: 1px solid #e9ecef;
+        transition: var(--transition);
+    }
+    
+    .organization-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 5px 20px rgba(74, 111, 165, 0.15);
+    }
+    
+    .organization-card.owned {
+        border-top: 3px solid var(--warning-color);
+    }
+    
+    .organization-card.admin {
+        border-top: 3px solid var(--primary-color);
+    }
+    
+    .organization-card.member {
+        border-top: 3px solid var(--secondary-color);
+    }
+    
+    .badge-role {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+    }
+    
+    .badge-role.owner {
+        background-color: rgba(255, 193, 7, 0.1);
+        color: #856404;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+    
+    .badge-role.admin {
+        background-color: rgba(74, 111, 165, 0.1);
+        color: var(--primary-color);
+        border: 1px solid rgba(74, 111, 165, 0.3);
+    }
+    
+    .badge-role.member {
+        background-color: rgba(108, 117, 125, 0.1);
+        color: var(--secondary-color);
+        border: 1px solid rgba(108, 117, 125, 0.3);
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #2c5282 100%);
+        border: none;
+        color: white;
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+        border-radius: 6px;
+        transition: var(--transition);
+    }
+    
+    .btn-gradient:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(74, 111, 165, 0.3);
+        color: white;
+    }
+    
+    .section-header {
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .activity-item {
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        background: #f8f9fa;
+        transition: var(--transition);
+    }
+    
+    .activity-item:hover {
+        background: #e9ecef;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow);
+    }
+    
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1.5rem;
+    }
+    
+    .quick-action-btn {
+        width: 100%;
+        padding: 1rem;
+        text-align: left;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        background: white;
+        transition: var(--transition);
+        margin-bottom: 0.75rem;
+    }
+    
+    .quick-action-btn:hover {
+        border-color: var(--primary-color);
+        background: #f8fafc;
+    }
+    
+    .card-header-custom {
+        background: white;
+        border-bottom: 2px solid #e9ecef;
+        padding: 1.25rem 1.5rem;
+        border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        font-weight: 600;
+        color: var(--dark-color);
+    }
+    
+    .text-muted {
+        color: #6c757d !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 80%;">
+    <!-- Welcome Header -->
+    <div class="dashboard-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h3 mb-2">Welcome back, {{ user.first_name|default:user.email }}</h1>
+                <p class="mb-0 opacity-75">Manage your church organizations and track all activities in one place.</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'organization_apply' %}" class="btn btn-light btn-lg">
+                    <i class="fas fa-plus me-2"></i> New Organization
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    
+    <!-- Overview Stats -->
+    {% if has_organizations %}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon primary me-3">
+                        <i class="fas fa-church"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-1">Organizations</h6>
+                        <h3 class="mb-0">{{ total_organizations }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card success">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon success me-3">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-1">Total Members</h6>
+                        <h3 class="mb-0">{{ total_members_across_all_orgs }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card info">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon info me-3">
+                        <i class="fas fa-envelope-open-text"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-1">Active Invites</h6>
+                        <h3 class="mb-0">{{ total_invites_across_all_orgs }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card warning">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon warning me-3">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-1">Quick Actions</h6>
+                        <a href="{% url 'organization_apply' %}" class="text-decoration-none">
+                            <h5 class="mb-0 text-warning">+ Add Organization</h5>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column: Organizations -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header-custom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-church text-primary me-2"></i>Your Organizations
+                        </h5>
+                        <a href="{% url 'organization_apply' %}" class="btn btn-sm btn-gradient">
+                            <i class="fas fa-plus me-1"></i> Add New
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if has_organizations %}
+                        <!-- Owned Organizations -->
+                        {% if owned_orgs_data %}
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-crown text-warning me-2"></i>Owned Organizations
+                                    <span class="badge bg-warning text-dark ms-2">{{ owned_orgs_data|length }}</span>
+                                </h6>
+                            </div>
+                            <div class="row">
+                                {% for org_data in owned_orgs_data %}
+                                <div class="col-xl-6 col-lg-12 mb-4">
+                                    <div class="organization-card owned">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-2 me-3">
+                                                    <i class="fas fa-crown fa-lg"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">{{ org_data.organization.name }}</h6>
+                                                    <small class="text-muted">{{ org_data.organization.slug }}</small>
+                                                </div>
+                                            </div>
+                                            <span class="badge-role owner">Owner</span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="row text-center">
+                                                <div class="col-4">
+                                                    <div class="text-muted small">Members</div>
+                                                    <div class="fw-bold">{{ org_data.member_count }}</div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="text-muted small">Invites</div>
+                                                    <div class="fw-bold">{{ org_data.invite_count }}</div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="text-muted small">Created</div>
+                                                    <div class="fw-bold">{{ org_data.organization.created_at|date:"M d" }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-grid gap-2">
+                                            <a href="{% url 'organization_dashboard' org_data.organization.id %}" 
+                                               class="btn btn-gradient btn-sm">
+                                                <i class="fas fa-tachometer-alt me-1"></i> Open Dashboard
+                                            </a>
+                                            <div class="d-flex gap-2">
+                                                <a href="#" class="btn btn-outline-primary btn-sm flex-fill">
+                                                    <i class="fas fa-user-plus"></i>
+                                                </a>
+                                                <a href="#" class="btn btn-outline-primary btn-sm flex-fill">
+                                                    <i class="fas fa-cog"></i>
+                                                </a>
+                                                <a href="#" class="btn btn-outline-primary btn-sm flex-fill">
+                                                    <i class="fas fa-chart-bar"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Admin Organizations -->
+                        {% if admin_orgs_data %}
+                        <div class="mb-5">
+                            <div class="section-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-user-shield text-primary me-2"></i>Administrator Access
+                                    <span class="badge bg-primary ms-2">{{ admin_orgs_data|length }}</span>
+                                </h6>
+                            </div>
+                            <div class="row">
+                                {% for org_data in admin_orgs_data %}
+                                <div class="col-xl-6 col-lg-12 mb-4">
+                                    <div class="organization-card admin">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 me-3">
+                                                    <i class="fas fa-user-shield fa-lg"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">{{ org_data.organization.name }}</h6>
+                                                    <small class="text-muted">{{ org_data.organization.slug }}</small>
+                                                </div>
+                                            </div>
+                                            <span class="badge-role admin">Admin</span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="row text-center">
+                                                <div class="col-6">
+                                                    <div class="text-muted small">Members</div>
+                                                    <div class="fw-bold">{{ org_data.member_count }}</div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="text-muted small">Joined</div>
+                                                    <div class="fw-bold">{{ org_data.membership.created_at|date:"M d, Y" }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="d-grid">
+                                            <a href="{% url 'organization_dashboard' org_data.organization.id %}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-external-link-alt me-1"></i> Access Dashboard
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Other Memberships -->
+                        {% if other_memberships_data %}
+                        <div>
+                            <div class="section-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-user text-secondary me-2"></i>Other Memberships
+                                    <span class="badge bg-secondary ms-2">{{ other_memberships_data|length }}</span>
+                                </h6>
+                            </div>
+                            <div class="row">
+                                {% for org_data in other_memberships_data %}
+                                <div class="col-xl-4 col-md-6 mb-4">
+                                    <div class="organization-card member">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle p-2 me-3">
+                                                    <i class="fas fa-user fa-lg"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0">{{ org_data.organization.name|truncatechars:15 }}</h6>
+                                                    <small class="text-muted">{{ org_data.organization.slug|truncatechars:10 }}</small>
+                                                </div>
+                                            </div>
+                                            <span class="badge-role member">{{ org_data.membership.get_role_display }}</span>
+                                        </div>
+                                        
+                                        <div class="d-grid">
+                                            <a href="{% url 'organization_dashboard' org_data.organization.id %}" 
+                                               class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-external-link-alt me-1"></i> View
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                    {% else %}
+                        <!-- No organizations -->
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-church"></i>
+                            </div>
+                            <h4 class="mb-3">No Organizations Yet</h4>
+                            <p class="text-muted mb-4">
+                                You're not a member of any organization yet. Get started by creating your first church organization.
+                            </p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <a href="{% url 'organization_apply' %}" class="btn btn-gradient">
+                                    <i class="fas fa-plus me-2"></i> Create Organization
+                                </a>
+                                <a href="{% url 'home' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-question-circle me-2"></i> Learn More
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Recent Activity & Quick Actions -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt text-warning me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <button class="quick-action-btn d-flex align-items-center" onclick="window.location.href='{% url 'organization_apply' %}'">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 me-3">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold">Create Organization</div>
+                            <small class="text-muted">Register a new church</small>
+                        </div>
+                    </button>
+                    
+                    <button class="quick-action-btn d-flex align-items-center" onclick="window.location.href='#'">
+                        <div class="bg-success bg-opacity-10 text-success rounded-circle p-2 me-3">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold">Invite Members</div>
+                            <small class="text-muted">Send invitations to join</small>
+                        </div>
+                    </button>
+                    
+                    <button class="quick-action-btn d-flex align-items-center" onclick="window.location.href='#'">
+                        <div class="bg-info bg-opacity-10 text-info rounded-circle p-2 me-3">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold">Help Center</div>
+                            <small class="text-muted">Get help & documentation</small>
+                        </div>
+                    </button>
+                    
+                    <button class="quick-action-btn d-flex align-items-center" onclick="window.location.href='#'">
+                        <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle p-2 me-3">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold">Account Settings</div>
+                            <small class="text-muted">Manage your account</small>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            {% if has_organizations and owned_orgs_data %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history text-info me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="small text-muted mb-3">Recent Invites</h6>
+                    {% for org_data in owned_orgs_data|slice:":2" %}
+                        {% if org_data.recent_invites %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-2 fw-bold">{{ org_data.organization.name }}</small>
+                            {% for invite in org_data.recent_invites %}
+                            <div class="activity-item">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2">
+                                        <div class="bg-{% if invite.accepted_at %}success{% elif invite.is_valid %}warning{% else %}danger{% endif %} bg-opacity-10 rounded-circle p-1">
+                                            <i class="fas fa-envelope fa-xs text-{% if invite.accepted_at %}success{% elif invite.is_valid %}warning{% else %}danger{% endif %}"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="small">{{ invite.email|truncatechars:20 }}</div>
+                                        <div class="text-muted smaller">{{ invite.get_role_display }}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small text-muted">{{ invite.created_at|timesince }} ago</div>
+                                        <span class="badge bg-{% if invite.accepted_at %}success{% elif invite.is_valid %}warning{% else %}danger{% endif %} smaller">
+                                            {% if invite.accepted_at %}Accepted{% elif invite.is_valid %}Pending{% else %}Expired{% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if not owned_orgs_data.0.recent_invites and not owned_orgs_data.1.recent_invites %}
+                    <div class="text-center py-3">
+                        <div class="text-muted mb-2">
+                            <i class="fas fa-envelope fa-2x"></i>
+                        </div>
+                        <p class="small text-muted mb-0">No recent invites</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Platform Status -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body text-center">
+                    <div class="mb-2">
+                        <i class="fas fa-shield-alt fa-2x text-primary"></i>
+                    </div>
+                    <h6 class="mb-1">Platform Status</h6>
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <span class="badge bg-success me-2">
+                            <i class="fas fa-circle fa-xs"></i> Operational
+                        </span>
+                        <small class="text-muted">All systems normal</small>
+                    </div>
+                    <small class="text-muted">Last updated: {% now "M d, Y" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add smooth animations
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate stat cards on load
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.display = 'block';
+                
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 100);
+            }, index * 100);
+        });
+        
+        // Add click animations to buttons
+        const buttons = document.querySelectorAll('.btn-gradient, .quick-action-btn');
+        buttons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+    });
+</script>
+{% endblock %}

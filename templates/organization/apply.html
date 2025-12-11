@@ -1,0 +1,70 @@
+<!-- templates/organization/apply.html -->
+{% extends 'base.html' %}
+
+{% block title %}Apply for Organization - Sanctuary{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">Apply for Your Church/Organization</h2>
+                    <p class="text-center text-muted mb-5">
+                        Fill out the form below to apply for your church to join the Sanctuary platform.
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Church/Organization Name *</label>
+                                {{ form.organization_name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Denomination (Optional)</label>
+                                {{ form.church_denomination }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Contact Person *</label>
+                            {{ form.contact_person }}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Contact Email *</label>
+                                {{ form.contact_email }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Contact Phone *</label>
+                                {{ form.contact_phone }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Location *</label>
+                            {{ form.location }}
+                            <small class="form-text text-muted">City, State, Country</small>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">About Your Church</label>
+                            {{ form.about }}
+                            <small class="form-text text-muted">
+                                Tell us about your church, congregation size, and what you hope to achieve with Sanctuary.
+                            </small>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Submit Application</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
