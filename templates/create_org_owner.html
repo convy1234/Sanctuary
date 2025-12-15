@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Create Org & Invite Owner · Sanctuary{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 720px;">
+    <h1>Create Organization & Invite Owner</h1>
+
+    {% if success %}
+        <div class="success">
+            <p>Organization <strong>{{ organization.name }}</strong> created.</p>
+            <p>Owner invite sent to {{ invitation.email }} (token: <code>{{ invitation.token }}</code>).</p>
+        </div>
+    {% endif %}
+
+    {% if errors %}
+        <div class="error">
+            <p>Unable to create organization:</p>
+            <ul>
+                {% for field, msgs in errors.items %}
+                    {% for msg in msgs %}
+                        <li>{{ field }}: {{ msg }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label>
+            Organization name
+            <input type="text" name="name" value="{{ name|default:'' }}" required>
+        </label>
+        <label>
+            Slug
+            <input type="text" name="slug" value="{{ slug|default:'' }}" required>
+        </label>
+        <label>
+            Subscription plan
+            <select name="plan" required>
+                <option value="">Select a plan</option>
+                {% for plan in plans %}
+                    <option value="{{ plan.id }}" {% if plan_id == plan.id|stringformat:"s" %}selected{% endif %}>
+                        {{ plan.name }} ({{ plan.billing_period }}) - Base {{ plan.base_price }} + {{ plan.price_per_user }} per user ({{ plan.included_users }} included, capacity {% if plan.capacity_max %}{{ plan.capacity_min }}-{{ plan.capacity_max }} members{% else %}{{ plan.capacity_min }}+ members{% endif %})
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Owner email
+            <input type="email" name="owner_email" value="{{ owner_email|default:'' }}" required>
+        </label>
+        <label>
+            Note to include (optional)
+            <textarea name="note" rows="3">{{ note|default:'' }}</textarea>
+        </label>
+        <button type="submit">Create org & send owner invite</button>
+    </form>
+</div>
+{% endblock %}

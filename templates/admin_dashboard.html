@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Admin Dashboard</h1>
+    <p class="muted">Manage churches, invites, and billing.</p>
+</div>
+
+<div class="card">
+    <h3>Organizations</h3>
+    <ul class="list">
+        <li><a href="{% url 'organizations_list' %}">Manage organizations & invites</a></li>
+        <li><a href="{% url 'create_org_owner' %}">Create org & invite owner</a></li>
+    </ul>
+</div>
+
+<div class="card">
+    <h3>API</h3>
+    <p><a href="{% url 'api_docs' %}">API documentation</a></p>
+</div>
+{% endblock %}

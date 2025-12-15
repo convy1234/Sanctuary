@@ -1,161 +1,355 @@
-<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sanctuary Church Platform{% endblock %}</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    {% block extra_css %}{% endblock %}
-    
+    <title>{% block title %}Sanctuary{% endblock %}</title>
+
     <style>
         :root {
-            --primary-color: #4a6fa5;
-            --secondary-color: #166088;
-            --accent-color: #4fc3a1;
-            --light-color: #f8f9fa;
-            --dark-color: #343a40;
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #6b7280;
+            --primary: #0f4c81;
+            --primary-soft: rgba(15, 76, 129, 0.12);
+            --border: #e6ebf4;
+            --radius: 12px;
         }
-        
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f7fa;
+            margin: 0;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(180deg, #f5f7fb 0%, #eef2fb 100%);
+            color: var(--text);
+            line-height: 1.6;
         }
-        
-        .navbar-brand {
-            font-weight: 700;
-            color: var(--primary-color) !important;
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
         }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
+        a:hover { text-decoration: underline; }
+
+        /* TOP BAR */
+        header {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            box-shadow: 0 6px 12px rgba(15,23,42,0.06);
         }
-        
-        .btn-primary:hover {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
+        .topbar {
+            margin: 0 auto;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
-        
-        .card {
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--text);
+        }
+        .brand-icon {
+            width: 34px;
+            height: 34px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: none;
+            display: grid;
+            place-items: center;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 800;
         }
-        
-        .footer {
-            background-color: var(--dark-color);
-            color: white;
-            padding: 2rem 0;
-            margin-top: 3rem;
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .nav-links a {
+            color: var(--muted);
+            font-weight: 600;
+        }
+        .nav-links a.active { color: var(--primary); }
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e0e7ff;
+            display: grid;
+            place-items: center;
+            color: #111827;
+            font-weight: 700;
+        }
+        .pill {
+            background: var(--primary);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .pill:hover { opacity: 0.95; text-decoration: none; }
+
+        /* MAIN */
+        main {
+            margin: 24px auto 60px;
+            padding: 0 20px;
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+            margin-bottom: 18px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+        .card h1,
+        .card h2,
+        .card h3 { margin-top: 0; }
+
+        /* TEXT */
+        .muted { color: var(--muted); font-size: 14px; }
+        .error { color: #b91c1c; font-weight: 600; }
+        .success { color: #15803d; font-weight: 600; }
+
+        /* FORMS */
+        form { display: grid; gap: 14px; }
+        label { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+        input, textarea, select {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 15px;
+            background: #fff;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+        textarea { resize: vertical; min-height: 100px; }
+        button {
+            padding: 12px 16px;
+            font-size: 15px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.05s, opacity 0.15s;
+        }
+        button:hover { opacity: 0.95; }
+        button:active { transform: translateY(1px); }
+
+        /* LISTS */
+        .list { list-style: none; padding: 0; margin: 0; }
+        .list li { padding: 10px 0; border-bottom: 1px dashed var(--border); }
+        .list li:last-child { border-bottom: none; }
+
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        .endpoint {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        @media (max-width: 720px) {
+            .topbar { flex-direction: column; align-items: flex-start; }
+            .user-area { width: 100%; justify-content: space-between; }
+            main { padding: 0 16px; }
         }
     </style>
+    <style>
+    .dashboard-shell {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 20px;
+    }
+    .sidebar {
+        background: linear-gradient(180deg, #0f4c81 0%, #09315c 100%);
+        color: #e8f0fb;
+        padding: 20px 14px;
+        border-radius: 14px;
+        min-height: 100%;
+    }
+    .sidebar h2 {
+        margin: 0 0 16px;
+        font-size: 18px;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sidebar a {
+        color: #e8f0fb;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        margin-bottom: 6px;
+    }
+    .sidebar a:hover,
+    .sidebar a.active {
+        background: rgba(255,255,255,0.12);
+        text-decoration: none;
+    }
+    .content-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+    }
+    .stat-card {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+        display: grid;
+        gap: 6px;
+    }
+    .stat-label {
+        font-size: 13px;
+        letter-spacing: 0.4px;
+        color: var(--muted);
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .stat-value {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--text);
+    }
+    .quick-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+    }
+    .quick-tile {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        background: #f8fbff;
+        text-align: center;
+    }
+    .quick-tile a {
+        display: block;
+        font-weight: 700;
+        color: #0f4c81;
+    }
+    .section-card {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+    .list-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px dashed var(--border);
+    }
+    .list-row:last-child { border-bottom: none; }
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #ecf2ff;
+        color: #0f4c81;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    @media (max-width: 900px) {
+        .dashboard-shell { grid-template-columns: 1fr; }
+        .sidebar { display: flex; overflow-x: auto; }
+        .sidebar a { margin-bottom: 0; white-space: nowrap; }
+    }
+</style>
+    {% block head_extra %}{% endblock %}
 </head>
+
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">
-                <i class="fas fa-church me-2"></i>Sanctuary
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                 <!-- In base.html navbar -->
-                        <!-- In base.html navbar -->
-{% if user.is_authenticated %}
-    <li class="nav-item">
-        <a class="nav-link" href="{% url 'dashboard' %}">
-            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
-        </a>
-    </li>
-    
-    {% if active_organization %}
-    <li class="nav-item">
-        <a class="nav-link" href="{% url 'organization_dashboard' active_organization.id %}">
-            <i class="fas fa-church me-1"></i> {{ active_organization.name|truncatechars:15 }}
-        </a>
-    </li>
-    {% endif %}
-    
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-            <i class="fas fa-user me-1"></i> {{ user.email|truncatechars:15 }}
-        </a>
-        <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="#">
-                <i class="fas fa-cog me-2"></i> Settings
-            </a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'logout' %}">
-                <i class="fas fa-sign-out-alt me-2"></i> Logout
-            </a></li>
-        </ul>
-    </li>
-{% endif %}
-                </ul>
-            </div>
+<header>
+    <div class="topbar">
+        <div class="brand">
+            <span class="brand-icon">&#9962;</span>
+            {% if request.user.is_authenticated and request.user.organization %}
+                <a class="nav-brand" href="{% url 'dashboard' %}">{{ request.user.organization.name }}</a>
+            {% else %}
+                <a class="nav-brand" href="{% url 'dashboard' %}">Sanctuary</a>
+            {% endif %}
         </div>
-    </nav>
 
-    <!-- Messages -->
-    {% if messages %}
-    <div class="container mt-3">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="nav-links">
+            <a class="active" href="{% url 'dashboard' %}">Dashboard</a>
+            {% if request.user.is_authenticated and request.user.organization %}
+                <a href="{% url 'organization_detail' request.user.organization.slug %}">Members</a>
+            {% else %}
+                <a href="{% url 'organizations_list' %}">Churches</a>
+            {% endif %}
+            <a href="{% url 'api_docs' %}">API Docs</a>
         </div>
-        {% endfor %}
+
+        <div class="user-area">
+            {% if request.user.is_authenticated %}
+                {% if request.user.organization %}
+                    <a class="pill" href="{% url 'send_invite' request.user.organization.id %}">+ Invite</a>
+                {% else %}
+                    <a class="pill" href="{% url 'accept_invite' %}">Accept Invite</a>
+                {% endif %}
+                <span class="muted">{{ request.user.email }}</span>
+                <div class="avatar">{{ request.user.first_name|default:request.user.email|slice:":2"|upper }}</div>
+                <a class="pill" href="{% url 'logout' %}">Logout</a>
+            {% else %}
+                <a href="{% url 'login' %}">Login</a>
+                <a class="pill" href="{% url 'accept_invite' %}">Accept invite</a>
+            {% endif %}
+        </div>
     </div>
-    {% endif %}
+</header>
 
-    <!-- Main Content -->
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>Sanctuary Church Platform</h5>
-                    <p>Empowering churches with modern management tools.</p>
-                </div>
-                <div class="col-md-4">
-                    <h5>Quick Links</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="{% url 'home' %}" class="text-light">Home</a></li>
-                        <li><a href="{% url 'organization_apply' %}" class="text-light">Apply for Organization</a></li>
-                        <li><a href="#" class="text-light">Contact Us</a></li>
-                    </ul>
-                </div>
-                <div class="col-md-4">
-                    <h5>Contact</h5>
-                    <p><i class="fas fa-envelope me-2"></i> support@sanctuary.com</p>
-                    <p><i class="fas fa-phone me-2"></i> +1 (234) 567-8900</p>
-                </div>
-            </div>
-            <hr class="bg-light">
-            <div class="text-center">
-                <p>&copy; 2024 Sanctuary Church Platform. All rights reserved.</p>
+<main>
+        <div class="dashboard-shell">
+            {% if request.user.is_authenticated and request.user.organization %}
+            <aside class="sidebar">
+                <h2>&#9962; {{ request.user.organization.name|default:"Sanctuary" }}</h2>
+                <a class="active" href="{% url 'dashboard' %}">&#128203; Dashboard</a>
+                <a href="{% url 'organization_detail' request.user.organization.slug %}">&#128101; Members</a>
+                <a href="#">&#128197; Events</a>
+                <a href="#">&#128230; Inventory</a>
+                <a href="#">&#128179; Finances</a>
+                <a href="#">&#128719; Room Booking</a>
+                <a href="#">&#128221; Reports</a>
+                <a href="#">&#9881; Settings</a>
+            </aside>
+            {% endif %}
+            <div class="dashboard-main">
+                {% block content %}{% endblock %}
             </div>
         </div>
-    </footer>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    {% block extra_js %}{% endblock %}
+</main>
 </body>
 </html>

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Subscription Plans{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Subscription Plans</h1>
+    <p class="muted">Create, update, or remove plans. Superusers only.</p>
+    <a class="pill" href="{% url 'subscription_plan_create' %}">Add plan</a>
+</div>
+
+<div class="card">
+    {% if plans %}
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Name</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Billing</th>
+                    <th style="text-align:right; padding:8px; border-bottom:1px solid #e2e8f0;">Base price</th>
+                    <th style="text-align:right; padding:8px; border-bottom:1px solid #e2e8f0;">Price/user</th>
+                    <th style="text-align:right; padding:8px; border-bottom:1px solid #e2e8f0;">Included users</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Capacity range</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Active</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                    <tr>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ plan.name }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ plan.get_billing_period_display }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">{{ plan.base_price }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">{{ plan.price_per_user }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0; text-align:right;">{{ plan.included_users }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">
+                            {% if plan.capacity_max %}
+                                {{ plan.capacity_min }} - {{ plan.capacity_max }} members
+                            {% else %}
+                                {{ plan.capacity_min }}+ members
+                            {% endif %}
+                        </td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{% if plan.is_active %}Yes{% else %}No{% endif %}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0; display:flex; gap:10px;">
+                            <a href="{% url 'subscription_plan_edit' plan.id %}">Edit</a>
+                            <form method="post" action="{% url 'subscription_plan_delete' plan.id %}">
+                                {% csrf_token %}
+                                <button type="submit" style="background:#b91c1c;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="muted">No plans yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

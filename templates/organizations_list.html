@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Churches{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{% if request.user.is_superuser %}All Church Organizations{% else %}My Church{% endif %}</h1>
+    {% if organizations %}
+        {% if request.user.is_superuser %}
+            <ul class="list">
+                {% for org in organizations %}
+                    <li>
+                        <a href="{% url 'organization_detail' org.slug %}">{{ org.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            {% for org in organizations %}
+                <p><a href="{% url 'organization_detail' org.slug %}">{{ org.name }}</a></p>
+            {% endfor %}
+        {% endif %}
+    {% else %}
+        <p class="muted">No organizations yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

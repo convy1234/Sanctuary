@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ organization.name }}{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>{{ organization.name }}</h1>
+    <p class="muted">Slug: {{ organization.slug }}</p>
+</div>
+
+<div class="card">
+    <h3>Subscription</h3>
+    {% if subscription %}
+        <p>Plan: {{ subscription.plan.name }} ({{ subscription.plan.billing_period }})</p>
+        <p>
+            Capacity:
+            {% if subscription.plan.capacity_max %}
+                {{ subscription.plan.capacity_min }} - {{ subscription.plan.capacity_max }} members
+            {% else %}
+                {{ subscription.plan.capacity_min }}+ members
+            {% endif %}
+        </p>
+        <p>Status: {{ subscription.status }}</p>
+    {% else %}
+        <p class="muted">No subscription yet.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Actions</h3>
+    <ul class="list">
+        <li><a href="{% url 'send_invite' organization.id %}">Send invite</a></li>
+    </ul>
+</div>
+{% endblock %}

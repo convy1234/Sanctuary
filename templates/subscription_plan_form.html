@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Subscription Plan{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 720px;">
+    <h1>{% if is_edit %}Edit{% else %}Create{% endif %} Subscription Plan</h1>
+    {% if form.errors %}
+        <div class="error">
+            Please fix the errors below.
+        </div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">{% if is_edit %}Update{% else %}Create{% endif %}</button>
+    </form>
+    <p class="muted" style="margin-top:12px;">
+        <a href="{% url 'subscription_plan_list' %}">Back to plans</a>
+    </p>
+</div>
+{% endblock %}

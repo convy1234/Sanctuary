@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Accept Invitation · Sanctuary{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 620px;">
+    <h1>Accept Your Invitation</h1>
+    {% if errors %}
+        <div class="error">
+            <p>We could not accept the invite. Please review and try again.</p>
+            <ul>
+                {% for field, msgs in errors.items %}
+                    {% for msg in msgs %}
+                        <li>{{ field }}: {{ msg }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <label>
+            Invitation token
+            <input type="text" name="token" value="{{ token|default:'' }}" required>
+        </label>
+        <label>
+            First name
+            <input type="text" name="first_name" value="{{ first_name|default:'' }}">
+        </label>
+        <label>
+            Last name
+            <input type="text" name="last_name" value="{{ last_name|default:'' }}">
+        </label>
+        <label>
+            Set password
+            <input type="password" name="password" minlength="8" required>
+        </label>
+        <button type="submit">Activate account</button>
+    </form>
+    <p class="muted">
+        You can also accept via the API endpoint <code>{% url 'api_invitation_accept' %}</code> using this token.
+    </p>
+</div>
+{% endblock %}

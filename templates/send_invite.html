@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Invite for {{ organization.name }} · Sanctuary{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 640px;">
+    <h1>Invite a User to {{ organization.name }}</h1>
+
+    {% if success %}
+        <div class="success">
+            <p>Invitation sent to {{ invitation.email }} as <strong>{{ invitation.get_role_display }}</strong>.</p>
+            <p>Token: <code>{{ invitation.token }}</code></p>
+        </div>
+    {% endif %}
+
+    {% if errors %}
+        <div class="error">
+            <p>Could not send invitation:</p>
+            <ul>
+                {% for field, msgs in errors.items %}
+                    {% for msg in msgs %}
+                        <li>{{ field }}: {{ msg }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label>
+            Invitee email
+            <input type="email" name="email" value="{{ email|default:'' }}" required>
+        </label>
+        <label>
+            Role to assign
+            <select name="role" required>
+                <option value="" disabled {% if not role %}selected{% endif %}>Select a role</option>
+                {% for value, label in role_choices %}
+                    <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <span class="muted">Owners can invite admins, pastors, heads of department, workers, or volunteers.</span>
+        </label>
+        <label style="align-items:center; gap:8px; display:flex; font-weight:400;">
+            <input type="checkbox" name="as_owner" {% if as_owner %}checked{% endif %} {% if not request.user.is_superuser %}disabled{% endif %}>
+            Invite as organization owner (superusers only)
+        </label>
+        <label>
+            Note (optional)
+            <textarea name="note" rows="3">{{ note|default:'' }}</textarea>
+        </label>
+        <button type="submit">Send invite</button>
+    </form>
+    <p class="muted">
+        Mobile users can accept via the API endpoint <code>{% url 'api_invitation_accept' %}</code>
+        using the token that is emailed to them.
+    </p>
+</div>
+{% endblock %}

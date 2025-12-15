@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}API Reference Aú Sanctuary{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Sanctuary API</h1>
+    <p>Authentication uses JWT (SimpleJWT). Include <code>Authorization: Bearer &lt;access_token&gt;</code> for protected endpoints.</p>
+</div>
+
+<div class="card">
+    <h2>Auth</h2>
+    <div class="endpoint">
+        <div><strong>POST</strong> <code>{% url 'api_auth_login' %}</code></div>
+        <p>Obtain JWT tokens with email/password.</p>
+<pre>{
+  "email": "user@example.com",
+  "password": "secret"
+}</pre>
+    </div>
+    <div class="endpoint">
+        <div><strong>POST</strong> <code>{% url 'api_auth_refresh' %}</code></div>
+        <p>Refresh access token.</p>
+<pre>{ "refresh": "..." }</pre>
+    </div>
+    <div class="endpoint">
+        <div><strong>GET</strong> <code>{% url 'api_auth_me' %}</code></div>
+        <p>Return the authenticated user's details (requires JWT in Authorization header).</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Invitations</h2>
+    <div class="endpoint">
+        <div><strong>POST</strong> <code>{% url 'api_invitation_create' %}</code></div>
+        <p>Create an invitation (requires auth and invite permission).</p>
+<pre>{
+  "email": "invitee@example.com",
+  "organization": "org-uuid",
+  "role": "worker",
+  "note": "optional",
+  "expires_at": "2025-12-31T00:00:00Z",
+  "as_owner": false
+}</pre>
+    </div>
+    <div class="endpoint">
+        <div><strong>POST</strong> <code>{% url 'api_invitation_accept' %}</code></div>
+        <p>Accept an invitation and receive JWT tokens.</p>
+<pre>{
+  "token": "invite-token",
+  "password": "new-password",
+  "first_name": "John",
+  "last_name": "Doe"
+}</pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Web Pages (for reference)</h2>
+    <ul class="list">
+        <li><code>{% url 'login' %}</code> - web login</li>
+        <li><code>{% url 'accept_invite' %}</code> - web invite acceptance</li>
+        <li><code>{% url 'create_org_owner' %}</code> - superuser org + owner invite</li>
+        <li><code>{% url 'dashboard' %}</code> - user dashboard (auth required)</li>
+    </ul>
+</div>
+{% endblock %}

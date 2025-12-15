@@ -40,12 +40,13 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     # local apps
-    "accounts",   
-    "church",     
+    "accounts",
+    "church",
 
     # third-party
     "rest_framework",
-    'rest_framework.authtoken', 
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
 
 ]
 
@@ -195,12 +196,14 @@ SITE_URL = "http://localhost:8000"
 # ---------------------------------------------------------------------
 from datetime import timedelta
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "AUTH_HEADER_TYPES": ("Bearer",),
+    'USER_ID_FIELD': 'uid', 
+    'USER_ID_CLAIM': 'user_id',
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
 }
-
 # ---------------------------------------------------------------------
 # Security / operational notes
 # ---------------------------------------------------------------------

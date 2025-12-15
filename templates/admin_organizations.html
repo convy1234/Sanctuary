@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Organizations & Invites{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Organizations & Pending Invites</h1>
+    <p class="muted"><a href="{% url 'create_org_owner' %}">Create org & invite owner</a></p>
+</div>
+
+<div class="card">
+    <h3>Pending invitations ({{ pending_count }})</h3>
+    {% if pending_invites %}
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Email</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Organization</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Owner?</th>
+                    <th style="text-align:left; padding:8px; border-bottom:1px solid #e2e8f0;">Expires</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invite in pending_invites %}
+                    <tr>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ invite.email }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ invite.organization.name }}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{% if invite.as_owner %}Yes{% else %}No{% endif %}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">{{ invite.expires_at }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="muted">No pending invitations.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block head_extra %}
+
+{% endblock %}
+
+{% block content %}
+
+
+    <div class="main">
+        <div class="section-card" style="margin-bottom:12px;">
+            <p class="muted" style="margin:0;">Welcome back, {{ user.organization.name|default:user.email }}</p>
+            <h1 style="margin:6px 0 0;">{{ user.organization.name|default:"Dashboard" }} Dashboard</h1>
+        </div>
+
+        <div class="content-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Members</div>
+                <div class="stat-value">{{ analytics.my_org_member_count|default:0 }}</div>
+                <span class="badge">Org scoped</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Invites</div>
+                <div class="stat-value">{{ analytics.my_org_pending_invites|default:0 }}</div>
+                <span class="badge">Pending</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Payments</div>
+                <div class="stat-value">0</div>
+                <span class="badge">No payments yet</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Quick Actions</div>
+                <a href="{% url 'send_invite' user.organization.id %}">+ Invite Member</a>
+            </div>
+        </div>
+
+        <div class="section-card" style="margin-top:14px;">
+            <h3 style="margin-top:0;">Quick Actions</h3>
+            <div class="quick-grid">
+                <div class="quick-tile"><a href="#">Create Request</a></div>
+                <div class="quick-tile"><a href="{% url 'send_invite' user.organization.id %}">Invite Member</a></div>
+                <div class="quick-tile"><a href="#">Book Room</a></div>
+                <div class="quick-tile"><a href="#">Add Inventory</a></div>
+            </div>
+        </div>
+
+        <div class="content-grid" style="margin-top:14px;">
+            <div class="section-card">
+                <div class="list-row">
+                    <strong>Recent Members</strong>
+                    <a href="{% url 'organization_detail' user.organization.slug %}">View All</a>
+                </div>
+                {% if recent_users %}
+                    {% for u in recent_users %}
+                        <div class="list-row">
+                            <div>
+                                <div>{{ u.get_full_name|default:u.email }}</div>
+                                <div class="muted">Joined {{ u.date_joined|date:"M d" }}</div>
+                            </div>
+                            <span class="badge">Member</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="muted">No members yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="section-card">
+                <div class="list-row">
+                    <strong>Recent Invites</strong>
+                    <span class="badge">{{ analytics.my_org_pending_invites|default:0 }} pending</span>
+                </div>
+                {% if recent_invites %}
+                    {% for inv in recent_invites %}
+                        <div class="list-row">
+                            <div>
+                                <div>{{ inv.email }}</div>
+                                <div class="muted">Sent {{ inv.created_at|date:"M d, H:i" }}</div>
+                            </div>
+                            <span class="badge">{% if inv.accepted_at %}Accepted{% else %}Pending{% endif %}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="muted">No invites yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

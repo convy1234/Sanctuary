@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Invite Only · Sanctuary{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 620px;">
+    <h1>Invite Only</h1>
+    <p>Accounts are created via invitation. Please check your email for an invite link or contact an administrator.</p>
+    <p>If you already have a token, you can accept it here: <a href="{% url 'accept_invite' %}">Accept invitation</a></p>
+</div>
+{% endblock %}

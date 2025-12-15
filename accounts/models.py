@@ -1,8 +1,10 @@
-# accounts/models.py
 import uuid
-from django.db import models
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+from church.models import Organization
 
 
 class UserManager(BaseUserManager):
@@ -14,10 +16,12 @@ class UserManager(BaseUserManager):
 
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
+
         if password:
             user.set_password(password)
         else:
             user.set_unusable_password()
+
         user.save(using=self._db)
         return user
 
@@ -36,18 +40,49 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     """Custom User model using email instead of username."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     username = None
+    uid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     email = models.EmailField(_("Email Address"), unique=True, db_index=True)
 
-    is_platform_admin = models.BooleanField(default=False)
-    two_factor_enabled = models.BooleanField(default=False)
-
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []  # no username field
+    EMAIL_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, null=True, blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Roles
+    is_owner = models.BooleanField(default=False)
+    is_admin = models.BooleanField(default=False)
+    is_pastor = models.BooleanField(default=False)
+    is_hod = models.BooleanField(default=False)
+    is_worker = models.BooleanField(default=False)
+    is_volunteer = models.BooleanField(default=False)
 
     objects = UserManager()
 
+    def levels(self):
+        levels = []
+        if self.is_owner:
+            levels.append("org_owner")
+        if self.is_admin:
+            levels.append("admin")
+        if self.is_pastor:
+            levels.append("pastor")
+        if self.is_hod:
+            levels.append("hod")
+        if self.is_worker:
+            levels.append("worker")
+        if self.is_volunteer:
+            levels.append("volunteer")
+        return levels
+
     def __str__(self):
-        return self.email
+        org = self.organization.slug if self.organization else "no-org"
+        return f"{self.email} @ {org}"

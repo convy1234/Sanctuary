@@ -1,148 +1,177 @@
-# sanctuary/church/models.py
-import uuid
 import secrets
-from django.db import models
+import uuid
+from datetime import timedelta
+
 from django.conf import settings
+from django.db import models
 from django.utils import timezone
 
-def default_expires():
-    return timezone.now() + timezone.timedelta(hours=72)
+
+def generate_invite_token() -> str:
+    """Generate a short, URL-safe invite token."""
+    return secrets.token_urlsafe(32)
+
+
+def default_invite_expiry():
+    """Default invite expiry (7 days from now)."""
+    return timezone.now() + timedelta(days=7)
 
 
 class Organization(models.Model):
+    """A minimal organization that owns user accounts."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="owned_organizations")
+
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.name
-
-
-class Invite(models.Model):
-    ROLE_CHOICES = [
-        ("org_owner", "Organization owner"),
-        ("admin", "Admin"),
-        ("hod", "Head of Department"),
-        ("manager", "Manager"),
-        ("staff", "Staff"),
-        ("member", "Member"),
-    ]
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(db_index=True)
-    inviter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="sent_invites")
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="invites")
-    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default="staff")
-    token = models.CharField(max_length=128, unique=True, db_index=True)
-    expires_at = models.DateTimeField(default=default_expires)
-    accepted_at = models.DateTimeField(null=True, blank=True)
-    used_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="used_invites")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="organizations_created",
+    )
 
     class Meta:
-        ordering = ("-created_at",)
+        ordering = ["name"]
 
-    def __str__(self):
-        return f"Invite {self.email} → {self.organization} ({self.role})"
-
-    @classmethod
-    def create_invite(cls, email, inviter, organization, role="staff", expiry_hours=72):
-        token = secrets.token_urlsafe(32)
-        expires = timezone.now() + timezone.timedelta(hours=expiry_hours)
-        return cls.objects.create(email=email.lower().strip(), inviter=inviter, organization=organization, role=role, token=token, expires_at=expires)
-
-    def is_valid(self):
-        return (self.accepted_at is None) and (self.expires_at > timezone.now())
-    
-    def save(self, *args, **kwargs):
-        # Generate token if it doesn't exist
-        if not self.token:
-            self.token = secrets.token_urlsafe(32)
-        
-        # Set expires_at if not set
-        if not self.expires_at:
-            from django.utils import timezone
-            self.expires_at = timezone.now() + timezone.timedelta(hours=72)
-        
-        super().save(*args, **kwargs)
+    def __str__(self) -> str:
+        return self.slug
 
 
-# Membership (append to sanctuary/church/models.py)
+class SubscriptionPlan(models.Model):
+    """Subscription catalog entry."""
 
-class Membership(models.Model):
-    ROLE_CHOICES = [
-        ("org_owner", "Organization owner"),
-        ("admin", "Admin"),
-        ("hod", "Head of Department"),
-        ("manager", "Manager"),
-        ("staff", "Staff"),
-        ("volunteer", "Volunteer"),
-        ("viewer", "Viewer"),
-    ]
+    BILLING_CHOICES = (
+        ("monthly", "Monthly"),
+        ("yearly", "Yearly"),
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="memberships")
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="members")
-    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default="staff")
-    is_primary_admin = models.BooleanField(default=False)  # e.g., the owner/primary admin
-    scopes = models.JSONField(default=dict, blank=True, help_text="Optional scoped privileges (manager_scopes).")
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+
+    billing_period = models.CharField(max_length=20, choices=BILLING_CHOICES, default="monthly")
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price_per_user = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    included_users = models.PositiveIntegerField(default=0)
+    capacity_min = models.PositiveIntegerField(default=0)
+    capacity_max = models.PositiveIntegerField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("user", "organization")
-        ordering = ("-created_at",)
+        ordering = ["name"]
 
-    def __str__(self):
-        return f"{self.user.email} @ {self.organization.slug} ({self.role})"
+    def __str__(self) -> str:
+        return f"{self.name} ({self.billing_period})"
 
 
-# sanctuary/church/models.py (add these models)
-class OrganizationApplication(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
-    ]
-    
+class OrganizationSubscription(models.Model):
+    """Subscription assigned to an organization with seat/price overrides."""
+
+    STATUS_CHOICES = (
+        ("trialing", "Trialing"),
+        ("active", "Active"),
+        ("past_due", "Past due"),
+        ("canceled", "Canceled"),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization_name = models.CharField(max_length=255)
-    contact_email = models.EmailField()
-    contact_phone = models.CharField(max_length=20, blank=True)
-    contact_person = models.CharField(max_length=255)
-    church_denomination = models.CharField(max_length=255, blank=True)
-    location = models.CharField(max_length=500, blank=True)
-    about = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    applied_at = models.DateTimeField(auto_now_add=True)
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    notes = models.TextField(blank=True)
-    
-    def __str__(self):
-        return f"{self.organization_name} - {self.status}"
+    organization = models.OneToOneField(
+        Organization, related_name="subscription", on_delete=models.CASCADE
+    )
+    plan = models.ForeignKey(
+        SubscriptionPlan,
+        related_name="subscriptions",
+        on_delete=models.PROTECT,
+    )
+    price_override = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+    started_at = models.DateTimeField(auto_now_add=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
 
-
-class Payment(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-        ('refunded', 'Refunded'),
-    ]
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="payments")
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3, default='USD')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    payment_method = models.CharField(max_length=50, blank=True)
-    transaction_id = models.CharField(max_length=255, blank=True, db_index=True)
-    payment_data = models.JSONField(default=dict, blank=True)  # Store payment provider response
-    paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"{self.organization.name} - {self.amount} ({self.status})"
-    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def current_price(self, user_count: int | None = None) -> float:
+        """Calculate current billable amount using provided user count."""
+        plan = self.plan
+        base = float(self.price_override) if self.price_override is not None else float(plan.base_price)
+        per_user = float(plan.price_per_user)
+        included = plan.included_users
+        billable_users = user_count if user_count is not None else included
+        extra_users = max(0, billable_users - included)
+        return base + extra_users * per_user
+
+    def __str__(self) -> str:
+        return f"{self.organization.slug} -> {self.plan.slug}"
+
+
+class Invitation(models.Model):
+    """Invite-only onboarding gatekeeper."""
+
+    ROLE_CHOICES = (
+        ("admin", "Admin"),
+        ("pastor", "Pastor"),
+        ("hod", "Head of Department"),
+        ("worker", "Worker"),
+        ("volunteer", "Volunteer"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(db_index=True)
+    organization = models.ForeignKey(
+        Organization,
+        related_name="invitations",
+        on_delete=models.CASCADE,
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="worker")
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sent_invitations",
+    )
+    as_owner = models.BooleanField(default=False)
+    token = models.CharField(
+        max_length=64,
+        unique=True,
+        default=generate_invite_token,
+        editable=False,
+    )
+    expires_at = models.DateTimeField(default=default_invite_expiry)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("email", "organization", "token")
+
+    @property
+    def is_used(self) -> bool:
+        return self.accepted_at is not None
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    def mark_accepted(self) -> None:
+        self.accepted_at = timezone.now()
+        self.save(update_fields=["accepted_at", "updated_at"])
+
+    def __str__(self) -> str:
+        return f"{self.email} -> {self.organization.slug}"

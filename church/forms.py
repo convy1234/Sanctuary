@@ -1,42 +1,20 @@
-# sanctuary/church/forms.py
 from django import forms
-from .models import OrganizationApplication
 
-class OrganizationApplicationForm(forms.ModelForm):
+from .models import SubscriptionPlan
+
+
+class SubscriptionPlanForm(forms.ModelForm):
     class Meta:
-        model = OrganizationApplication
+        model = SubscriptionPlan
         fields = [
-            'organization_name', 'contact_person', 'contact_email',
-            'contact_phone', 'church_denomination', 'location', 'about'
+            "name",
+            "slug",
+            "description",
+            "billing_period",
+            "base_price",
+            "price_per_user",
+            "included_users",
+            "capacity_min",
+            "capacity_max",
+            "is_active",
         ]
-        widgets = {
-            'organization_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Church/Organization Name'
-            }),
-            'contact_person': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Your Name'
-            }),
-            'contact_email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Email address'
-            }),
-            'contact_phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Phone number'
-            }),
-            'church_denomination': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Denomination (optional)'
-            }),
-            'location': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'City, State'
-            }),
-            'about': forms.Textarea(attrs={
-                'class': 'form-control',
-                'placeholder': 'Tell us about your church...',
-                'rows': 4
-            }),
-        }
