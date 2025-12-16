@@ -9,24 +9,20 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    organization = serializers.SerializerMethodField()
+    organization_id = serializers.UUIDField(source='organization.id', read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
 
     class Meta:
         model = User
-        fields = [
-            "uid",
-            "email",
-            "first_name",
-            "last_name",
-            "is_active",
-            "organization",
-        ]
+        fields = (
+            'uid',
+            'email',
+            'first_name',
+            'last_name',
+            'organization_id',
+            'organization_name',
+        )
 
-    def get_organization(self, obj):
-        org = obj.organization
-        if not org:
-            return None
-        return {"id": str(org.id), "name": org.name, "slug": org.slug}
 
 
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):

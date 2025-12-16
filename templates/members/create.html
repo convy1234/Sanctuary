@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block title %}Add Member - {{ organization.name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+    .form-section {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 22px;
+        box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+    }
+    .form-section h3 {
+        margin-top: 0;
+        margin-bottom: 18px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border);
+        color: var(--primary);
+    }
+    .required::after {
+        content: " *";
+        color: #dc2626;
+    }
+    .photo-upload {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .photo-upload:hover {
+        border-color: var(--primary);
+    }
+    .photo-preview {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 12px;
+        border: 3px solid var(--border);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <h1 style="margin:6px 0 0;">Add New Member</h1>
+        </div>
+        <div class="actions">
+            <a href="{% url 'member_list' %}" class="pill">← Back to List</a>
+        </div>
+    </div>
+
+    {% if errors %}
+    <div class="card" style="background:#fee2e2; border-color:#dc2626; margin-bottom:20px;">
+        <h3 style="margin-top:0; color:#dc2626;">⚠️ Please fix the following errors:</h3>
+        <ul style="color:#dc2626; padding-left:20px;">
+            {% for field, error_list in errors.items %}
+                {% for error in error_list %}
+                    <li><strong>{{ field|title }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-grid">
+            <!-- Personal Information -->
+            <div class="form-section">
+                <h3>👤 Personal Information</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="first_name" class="required">First Name</label>
+                        <input type="text" id="first_name" name="first_name" 
+                               value="{{ data.first_name|default:'' }}" required>
+                    </div>
+                    <div>
+                        <label for="last_name" class="required">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" 
+                               value="{{ data.last_name|default:'' }}" required>
+                    </div>
+                    <div>
+                        <label for="gender">Gender</label>
+                        <select id="gender" name="gender">
+                            <option value="">Select gender</option>
+                            <option value="male" {% if data.gender == 'male' %}selected{% endif %}>Male</option>
+                            <option value="female" {% if data.gender == 'female' %}selected{% endif %}>Female</option>
+                            <option value="other" {% if data.gender == 'other' %}selected{% endif %}>Other</option>
+                            <option value="prefer_not_to_say" {% if data.gender == 'prefer_not_to_say' %}selected{% endif %}>Prefer not to say</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="date_of_birth">Date of Birth</label>
+                        <input type="date" id="date_of_birth" name="date_of_birth" 
+                               value="{{ data.date_of_birth|default:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo Upload -->
+            <div class="form-section">
+                <h3>🖼️ Member Photo</h3>
+                <div class="photo-upload" onclick="document.getElementById('photo').click()">
+                    <div id="photoPreview" style="display:none;">
+                        <img id="previewImage" class="photo-preview" src="" alt="Preview">
+                        <div>Click to change photo</div>
+                    </div>
+                    <div id="photoPlaceholder">
+                        <div style="font-size:48px; margin-bottom:12px;">📸</div>
+                        <div>Click to upload member photo</div>
+                        <div class="muted" style="margin-top:6px;">JPG, PNG up to 5MB</div>
+                    </div>
+                    <input type="file" id="photo" name="photo" accept="image/*" style="display:none;" 
+                           onchange="previewPhoto(event)">
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="form-section">
+                <h3>📞 Contact Information</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" 
+                               value="{{ data.email|default:'' }}">
+                    </div>
+                    <div>
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" 
+                               value="{{ data.phone|default:'' }}" placeholder="+234XXXXXXXXXX">
+                    </div>
+                    <div>
+                        <label for="address">Address</label>
+                        <textarea id="address" name="address" 
+                                  placeholder="Street, area, city">{{ data.address|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Church Information -->
+            <div class="form-section">
+                <h3>⛪ Church Information</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="status" class="required">Member Status</label>
+                        <select id="status" name="status" required>
+                            <option value="">Select status</option>
+                            <option value="new" {% if data.status == 'new' %}selected{% endif %}>New</option>
+                            <option value="active" {% if data.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if data.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                            <option value="visitor" {% if data.status == 'visitor' %}selected{% endif %}>Visitor</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="join_date">Join Date</label>
+                        <input type="date" id="join_date" name="join_date" 
+                               value="{{ data.join_date|default:'' }}">
+                    </div>
+                    <div>
+                        <label for="campus">Campus</label>
+                        <select id="campus" name="campus">
+                            <option value="">Select campus</option>
+                            {% for campus in campuses %}
+                                <option value="{{ campus.id }}" {% if data.campus == campus.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ campus.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Family Information -->
+            <div class="form-section">
+                <h3>👨‍👩‍👧‍👦 Family Information</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="family">Family</label>
+                        <select id="family" name="family">
+                            <option value="">Select family</option>
+                            {% for family in families %}
+                                <option value="{{ family.id }}" {% if data.family == family.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ family.family_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="family_role">Family Role</label>
+                        <select id="family_role" name="family_role">
+                            <option value="">Select role</option>
+                            <option value="head" {% if data.family_role == 'head' %}selected{% endif %}>Family Head</option>
+                            <option value="spouse" {% if data.family_role == 'spouse' %}selected{% endif %}>Spouse</option>
+                            <option value="child" {% if data.family_role == 'child' %}selected{% endif %}>Child</option>
+                            <option value="parent" {% if data.family_role == 'parent' %}selected{% endif %}>Parent</option>
+                            <option value="sibling" {% if data.family_role == 'sibling' %}selected{% endif %}>Sibling</option>
+                            <option value="other" {% if data.family_role == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="marital_status">Marital Status</label>
+                        <select id="marital_status" name="marital_status">
+                            <option value="">Select status</option>
+                            <option value="single" {% if data.marital_status == 'single' %}selected{% endif %}>Single</option>
+                            <option value="married" {% if data.marital_status == 'married' %}selected{% endif %}>Married</option>
+                            <option value="divorced" {% if data.marital_status == 'divorced' %}selected{% endif %}>Divorced</option>
+                            <option value="widowed" {% if data.marital_status == 'widowed' %}selected{% endif %}>Widowed</option>
+                            <option value="separated" {% if data.marital_status == 'separated' %}selected{% endif %}>Separated</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Professional & Medical -->
+            <div class="form-section">
+                <h3>💼 Professional & Medical</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="occupation">Occupation</label>
+                        <input type="text" id="occupation" name="occupation" 
+                               value="{{ data.occupation|default:'' }}" placeholder="e.g., Engineer, Teacher, Business">
+                    </div>
+                    <div>
+                        <label for="blood_type">Blood Type</label>
+                        <select id="blood_type" name="blood_type">
+                            <option value="">Select blood type</option>
+                            <option value="a_positive" {% if data.blood_type == 'a_positive' %}selected{% endif %}>A+</option>
+                            <option value="a_negative" {% if data.blood_type == 'a_negative' %}selected{% endif %}>A-</option>
+                            <option value="b_positive" {% if data.blood_type == 'b_positive' %}selected{% endif %}>B+</option>
+                            <option value="b_negative" {% if data.blood_type == 'b_negative' %}selected{% endif %}>B-</option>
+                            <option value="ab_positive" {% if data.blood_type == 'ab_positive' %}selected{% endif %}>AB+</option>
+                            <option value="ab_negative" {% if data.blood_type == 'ab_negative' %}selected{% endif %}>AB-</option>
+                            <option value="o_positive" {% if data.blood_type == 'o_positive' %}selected{% endif %}>O+</option>
+                            <option value="o_negative" {% if data.blood_type == 'o_negative' %}selected{% endif %}>O-</option>
+                            <option value="unknown" {% if data.blood_type == 'unknown' %}selected{% endif %}>Unknown</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="baptism_status">Baptism Status</label>
+                        <select id="baptism_status" name="baptism_status">
+                            <option value="">Select baptism status</option>
+                            <option value="not_baptized" {% if data.baptism_status == 'not_baptized' %}selected{% endif %}>Not Baptized</option>
+                            <option value="water_baptized" {% if data.baptism_status == 'water_baptized' %}selected{% endif %}>Water Baptized</option>
+                            <option value="spirit_baptized" {% if data.baptism_status == 'spirit_baptized' %}selected{% endif %}>Spirit Baptized</option>
+                            <option value="both" {% if data.baptism_status == 'both' %}selected{% endif %}>Both Water and Spirit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="baptism_date">Baptism Date</label>
+                        <input type="date" id="baptism_date" name="baptism_date" 
+                               value="{{ data.baptism_date|default:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location & Emergency Contact -->
+            <div class="form-section">
+                <h3>📍 Location & Emergency</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="residential_city">Residential City</label>
+                        <input type="text" id="residential_city" name="residential_city" 
+                               value="{{ data.residential_city|default:'' }}" placeholder="City">
+                    </div>
+                    <div>
+                        <label for="residential_state">Residential State</label>
+                        <input type="text" id="residential_state" name="residential_state" 
+                               value="{{ data.residential_state|default:'' }}" placeholder="State">
+                    </div>
+                    <div>
+                        <label for="next_of_kin_name">Next of Kin Name</label>
+                        <input type="text" id="next_of_kin_name" name="next_of_kin_name" 
+                               value="{{ data.next_of_kin_name|default:'' }}" placeholder="Full name">
+                    </div>
+                    <div>
+                        <label for="next_of_kin_phone">Next of Kin Phone</label>
+                        <input type="tel" id="next_of_kin_phone" name="next_of_kin_phone" 
+                               value="{{ data.next_of_kin_phone|default:'' }}" placeholder="+234XXXXXXXXXX">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="form-section">
+                <h3>📝 Additional Information</h3>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label for="notes">Notes</label>
+                        <textarea id="notes" name="notes" placeholder="Internal notes (optional)"
+                                  style="min-height:120px;">{{ data.notes|default:'' }}</textarea>
+                    </div>
+                    <div>
+                        <label for="departments">Departments</label>
+                        <select id="departments" name="departments" multiple style="height:120px;">
+                            {% for dept in departments %}
+                                <option value="{{ dept.id }}" 
+                                    {% if dept.id|stringformat:"s" in data.departments %}selected{% endif %}>
+                                    {{ dept.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="muted" style="margin-top:6px;">Hold Ctrl/Cmd to select multiple</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px; padding-top:20px; border-top:2px solid var(--border);">
+            <a href="{% url 'member_list' %}" style="padding:12px 20px; border:1px solid var(--border); border-radius:10px;">Cancel</a>
+            <div style="display:flex; gap:12px;">
+                <button type="submit" name="save_and_add" style="background:#4f46e5;">Save & Add Another</button>
+                <button type="submit" name="save" style="background:var(--primary);">Save Member</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function previewPhoto(event) {
+    const input = event.target;
+    const preview = document.getElementById('photoPreview');
+    const placeholder = document.getElementById('photoPlaceholder');
+    const previewImage = document.getElementById('previewImage');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImage.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+        }
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        preview.style.display = 'none';
+        placeholder.style.display = 'block';
+    }
+}
+
+// Auto-format phone numbers
+document.getElementById('phone')?.addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.startsWith('234')) {
+        value = '+' + value;
+    } else if (value.startsWith('0')) {
+        value = '+234' + value.substring(1);
+    }
+    e.target.value = value;
+});
+</script>
+{% endblock %}

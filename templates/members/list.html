@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Members - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header with Actions -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <h1 style="margin:6px 0 0;">Member Directory</h1>
+        </div>
+        <div class="actions">
+            <a href="{% url 'member_create' %}" class="pill">+ Add Member</a>
+            <a href="{% url 'member_statistics' %}" class="pill" style="background:#4f46e5;">📊 Stats</a>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card" style="margin-bottom:14px;">
+        <form method="get" style="display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:end;">
+            <div>
+                <label for="search">Search Members</label>
+                <input type="text" id="search" name="search" placeholder="Name, email, or phone..." 
+                       value="{{ request.GET.search|default:'' }}">
+            </div>
+            <div>
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All Status</option>
+                    <option value="new" {% if request.GET.status == 'new' %}selected{% endif %}>New</option>
+                    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="visitor" {% if request.GET.status == 'visitor' %}selected{% endif %}>Visitor</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="submit">Filter</button>
+                <a href="{% url 'member_list' %}" style="padding:12px 16px; border:1px solid var(--border); border-radius:10px;">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="content-grid" style="margin-bottom:20px;">
+        <div class="stat-card">
+            <div class="stat-label">Total Members</div>
+            <div class="stat-value">{{ members|length }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Active</div>
+            <div class="stat-value">{{ active_count|default:0 }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">New</div>
+            <div class="stat-value">{{ new_count|default:0 }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Visitors</div>
+            <div class="stat-value">{{ visitor_count|default:0 }}</div>
+        </div>
+    </div>
+
+    <!-- Members Table -->
+    <div class="section-card">
+        {% if members %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left; padding:12px; font-weight:700;">Name</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Contact</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Status</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Join Date</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in members %}
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="avatar" style="width:36px; height:36px;">
+                                        {% if member.photo %}
+                                            <img src="{{ member.photo.url }}" alt="{{ member.full_name }}" 
+                                                 style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                                        {% else %}
+                                            {{ member.first_name|slice:":1"|upper }}{{ member.last_name|slice:":1"|upper }}
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <strong>{{ member.full_name }}</strong>
+                                        <div class="muted">{{ member.family_role|default:"Member" }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:12px;">
+                                <div>{{ member.email|default:"No email" }}</div>
+                                <div class="muted">{{ member.phone|default:"No phone" }}</div>
+                            </td>
+                            <td style="padding:12px;">
+                                <span class="badge" style="background:
+                                    {% if member.status == 'active' %}#d1fae5; color:#065f46;
+                                    {% elif member.status == 'new' %}#dbeafe; color:#1e40af;
+                                    {% elif member.status == 'inactive' %}#f3f4f6; color:#374151;
+                                    {% else %}#fef3c7; color:#92400e;
+                                    {% endif %}">
+                                    {{ member.status|title }}
+                                </span>
+                            </td>
+                            <td style="padding:12px;">
+                                {% if member.join_date %}
+                                    {{ member.join_date|date:"M d, Y" }}
+                                {% else %}
+                                    <span class="muted">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:12px;">
+                                <div style="display:flex; gap:8px;">
+                                    <a href="{% url 'member_detail' member.id %}" style="padding:6px 12px; background:var(--primary-soft); border-radius:6px; font-size:13px;">View</a>
+                                    <a href="{% url 'member_edit' member.id %}" style="padding:6px 12px; background:#e0e7ff; border-radius:6px; font-size:13px;">Edit</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div style="text-align:center; padding:40px 20px;">
+                <div style="font-size:48px; margin-bottom:16px;">👥</div>
+                <h3 style="margin:0 0 8px;">No members found</h3>
+                <p class="muted" style="margin-bottom:20px;">
+                    {% if request.GET.search %}
+                        No members match your search "{{ request.GET.search }}"
+                    {% else %}
+                        Start by adding your first church member
+                    {% endif %}
+                </p>
+                <a href="{% url 'member_create' %}" class="pill">+ Add First Member</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Family & Department Quick Links -->
+    <div class="content-grid" style="margin-top:20px;">
+        <div class="section-card">
+            <h3 style="margin-top:0;">Families</h3>
+            {% if families %}
+                {% for family in families|slice:":5" %}
+                    <div class="list-row">
+                        <div>
+                            <strong>{{ family.family_name }}</strong>
+                            <div class="muted">{{ family.members.count }} members</div>
+                        </div>
+                        <a href="#" style="font-size:13px;">View</a>
+                    </div>
+                {% endfor %}
+                {% if families.count > 5 %}
+                    <div style="text-align:center; margin-top:12px;">
+                        <a href="#" class="muted">View all {{ families.count }} families →</a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <p class="muted">No families created yet</p>
+            {% endif %}
+        </div>
+
+        <div class="section-card">
+            <h3 style="margin-top:0;">Departments</h3>
+            {% if departments %}
+                {% for dept in departments|slice:":5" %}
+                    <div class="list-row">
+                        <div>
+                            <strong>{{ dept.name }}</strong>
+                            <div class="muted">{{ dept.members.count }} members</div>
+                        </div>
+                        <span class="badge">{{ dept.leader.full_name|default:"No leader" }}</span>
+                    </div>
+                {% endfor %}
+                {% if departments.count > 5 %}
+                    <div style="text-align:center; margin-top:12px;">
+                        <a href="#" class="muted">View all {{ departments.count }} departments →</a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <p class="muted">No departments created yet</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
