@@ -3,6 +3,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -70,6 +71,13 @@ class SubscriptionPlan(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.billing_period})"
 
+    def clean(self):
+        super().clean()
+        if self.capacity_max is not None and self.capacity_max < self.capacity_min:
+            raise ValidationError({"capacity_max": "Max capacity must be greater than or equal to the minimum."})
+        if self.base_price < 0 or self.price_per_user < 0:
+            raise ValidationError("Prices cannot be negative.")
+
 
 class OrganizationSubscription(models.Model):
     """Subscription assigned to an organization with seat/price overrides."""
@@ -109,9 +117,16 @@ class OrganizationSubscription(models.Model):
         base = float(self.price_override) if self.price_override is not None else float(plan.base_price)
         per_user = float(plan.price_per_user)
         included = plan.included_users
+        if user_count is None and self.organization_id:
+            # Default to actual headcount when no override is provided.
+            user_count = self.organization.user_set.count()
         billable_users = user_count if user_count is not None else included
         extra_users = max(0, billable_users - included)
         return base + extra_users * per_user
+
+    @property
+    def is_active(self) -> bool:
+        return self.status in {"trialing", "active"} and (self.ends_at is None or self.ends_at > timezone.now())
 
     def __str__(self) -> str:
         return f"{self.organization.slug} -> {self.plan.slug}"
@@ -169,9 +184,18 @@ class Invitation(models.Model):
     def is_expired(self) -> bool:
         return timezone.now() >= self.expires_at
 
+    @property
+    def is_active(self) -> bool:
+        return not self.is_used and not self.is_expired
+
     def mark_accepted(self) -> None:
         self.accepted_at = timezone.now()
         self.save(update_fields=["accepted_at", "updated_at"])
+
+    def clean(self):
+        super().clean()
+        if not self.pk and self.expires_at and self.expires_at <= timezone.now():
+            raise ValidationError({"expires_at": "Expiration must be set to a future time."})
 
     def __str__(self) -> str:
         return f"{self.email} -> {self.organization.slug}"
