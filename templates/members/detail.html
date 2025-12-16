@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}{{ member.full_name }} - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Member Header -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div class="avatar" style="width:60px; height:60px; font-size:20px;">
+                {% if member.photo %}
+                    <img src="{{ member.photo.url }}" alt="{{ member.full_name }}" 
+                         style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                {% else %}
+                    {{ member.first_name|slice:":1"|upper }}{{ member.last_name|slice:":1"|upper }}
+                {% endif %}
+            </div>
+            <div>
+                <h1 style="margin:0 0 4px;">{{ member.full_name }}</h1>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <span class="badge" style="background:
+                        {% if member.status == 'active' %}#d1fae5; color:#065f46;
+                        {% elif member.status == 'new' %}#dbeafe; color:#1e40af;
+                        {% elif member.status == 'inactive' %}#f3f4f6; color:#374151;
+                        {% else %}#fef3c7; color:#92400e;
+                        {% endif %}">
+                        {{ member.status|title }}
+                    </span>
+                    <span class="muted">Member since {{ member.join_date|date:"M Y"|default:"Recently" }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <a href="{% url 'member_edit' member.id %}" class="pill" style="background:#4f46e5;">✏️ Edit</a>
+            <a href="{% url 'member_list' %}" class="pill">← Back to List</a>
+        </div>
+    </div>
+
+    <div class="content-grid">
+        <!-- Personal Information -->
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                👤 Personal Information
+            </h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div>
+                    <div class="stat-label">Full Name</div>
+                    <div class="stat-value" style="font-size:18px;">{{ member.full_name }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Gender</div>
+                    <div>{{ member.gender|default:"Not specified"|title }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Date of Birth</div>
+                    <div>{{ member.date_of_birth|date:"F d, Y"|default:"Not specified" }}</div>
+                    {% if member.date_of_birth %}
+                        <div class="muted">Age: {{ member.age }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="stat-label">Marital Status</div>
+                    <div>{{ member.marital_status|default:"Not specified"|title }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                📞 Contact Information
+            </h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div>
+                    <div class="stat-label">Email</div>
+                    <div>{{ member.email|default:"Not specified" }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Phone</div>
+                    <div>{{ member.phone|default:"Not specified" }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Address</div>
+                    <div>{{ member.address|default:"Not specified"|linebreaksbr }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Location</div>
+                    <div>{{ member.residential_city|default:"" }} {{ member.residential_state|default:"" }}</div>
+                    <div class="muted">{{ member.residential_country|default:"" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Church Information -->
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                ⛪ Church Information
+            </h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div>
+                    <div class="stat-label">Status</div>
+                    <span class="badge" style="background:
+                        {% if member.status == 'active' %}#d1fae5; color:#065f46;
+                        {% elif member.status == 'new' %}#dbeafe; color:#1e40af;
+                        {% else %}#fef3c7; color:#92400e;
+                        {% endif %}">
+                        {{ member.status|title }}
+                    </span>
+                </div>
+                <div>
+                    <div class="stat-label">Join Date</div>
+                    <div>{{ member.join_date|date:"F d, Y"|default:"Not specified" }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Campus</div>
+                    <div>{{ member.campus.name|default:"Not assigned" }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Family</div>
+                    <div>{{ member.family.family_name|default:"Not assigned" }}</div>
+                    {% if member.family_role %}
+                        <div class="muted">Role: {{ member.family_role|title }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Departments -->
+            {% if member.departments.all %}
+            <div style="margin-top:16px;">
+                <div class="stat-label">Departments</div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                    {% for dept in member.departments.all %}
+                    <span class="badge" style="background:#e0e7ff; color:#3730a3;">{{ dept.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Professional & Medical Info -->
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                💼 Professional & Medical
+            </h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div>
+                    <div class="stat-label">Occupation</div>
+                    <div>{{ member.occupation|default:"Not specified" }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Blood Type</div>
+                    <div>{{ member.blood_type|default:"Not specified"|upper }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Baptism Status</div>
+                    <div>{{ member.baptism_status|default:"Not specified"|title }}</div>
+                    {% if member.baptism_date %}
+                        <div class="muted">Date: {{ member.baptism_date|date:"F d, Y" }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="stat-label">Origin</div>
+                    <div>{{ member.origin_city|default:"" }} {{ member.origin_state|default:"" }}</div>
+                    <div class="muted">{{ member.origin_country|default:"" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        {% if member.next_of_kin_name %}
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                🆘 Emergency Contact
+            </h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                <div>
+                    <div class="stat-label">Name</div>
+                    <div>{{ member.next_of_kin_name }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Phone</div>
+                    <div>{{ member.next_of_kin_phone|default:"Not specified" }}</div>
+                </div>
+                <div>
+                    <div class="stat-label">Relationship</div>
+                    <div>{{ member.next_of_kin_relationship|default:"Not specified"|title }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Notes -->
+        {% if member.notes %}
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                📝 Notes
+            </h3>
+            <div style="background:#f8fafc; padding:16px; border-radius:8px; border-left:4px solid var(--primary);">
+                {{ member.notes|linebreaks }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Family Members (if in a family) -->
+        {% if member.family and member.family.members.count > 1 %}
+        <div class="section-card">
+            <h3 style="margin-top:0; display:flex; align-items:center; gap:8px;">
+                👨‍👩‍👧‍👦 Family Members
+                <span class="badge">{{ member.family.members.count }} members</span>
+            </h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; margin-top:12px;">
+                {% for family_member in member.family.members.all %}
+                    {% if family_member.id != member.id %}
+                    <div style="display:flex; align-items:center; gap:12px; padding:12px; background:#f8fafc; border-radius:8px;">
+                        <div class="avatar" style="width:40px; height:40px;">
+                            {% if family_member.photo %}
+                                <img src="{{ family_member.photo.url }}" alt="{{ family_member.full_name }}" 
+                                     style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                            {% else %}
+                                {{ family_member.first_name|slice:":1"|upper }}{{ family_member.last_name|slice:":1"|upper }}
+                            {% endif %}
+                        </div>
+                        <div>
+                            <strong>{{ family_member.full_name }}</strong>
+                            <div class="muted">{{ family_member.family_role|default:"Family member"|title }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

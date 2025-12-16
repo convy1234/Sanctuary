@@ -302,14 +302,23 @@
             {% endif %}
         </div>
 
+        <!-- UPDATED NAVIGATION LINKS -->
         <div class="nav-links">
-            <a class="active" href="{% url 'dashboard' %}">Dashboard</a>
+            <!-- Dashboard link -->
+            <a class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+               href="{% url 'dashboard' %}">Dashboard</a>
+            
+            <!-- Members link (UPDATED) -->
             {% if request.user.is_authenticated and request.user.organization %}
-                <a href="{% url 'organization_detail' request.user.organization.slug %}">Members</a>
+                <a class="{% if 'member_' in request.resolver_match.url_name or request.resolver_match.url_name == 'member_list' %}active{% endif %}" 
+                   href="{% url 'member_list' %}">Members</a>
             {% else %}
                 <a href="{% url 'organizations_list' %}">Churches</a>
             {% endif %}
-            <a href="{% url 'api_docs' %}">API Docs</a>
+            
+            <!-- API Docs link -->
+            <a class="{% if request.resolver_match.url_name == 'api_docs' %}active{% endif %}" 
+               href="{% url 'api_docs' %}">API Docs</a>
         </div>
 
         <div class="user-area">
@@ -333,10 +342,19 @@
 <main>
         <div class="dashboard-shell">
             {% if request.user.is_authenticated and request.user.organization %}
+            <!-- UPDATED SIDEBAR -->
             <aside class="sidebar">
                 <h2>&#9962; {{ request.user.organization.name|default:"Sanctuary" }}</h2>
-                <a class="active" href="{% url 'dashboard' %}">&#128203; Dashboard</a>
-                <a href="{% url 'organization_detail' request.user.organization.slug %}">&#128101; Members</a>
+                
+                <!-- Dashboard -->
+                <a class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                   href="{% url 'dashboard' %}">&#128203; Dashboard</a>
+                
+                <!-- Members (UPDATED) -->
+                <a class="{% if 'member_' in request.resolver_match.url_name or request.resolver_match.url_name == 'member_list' %}active{% endif %}" 
+                   href="{% url 'member_list' %}">&#128101; Members</a>
+                
+                <!-- Future Features -->
                 <a href="#">&#128197; Events</a>
                 <a href="#">&#128230; Inventory</a>
                 <a href="#">&#128179; Finances</a>
