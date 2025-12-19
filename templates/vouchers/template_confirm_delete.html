@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Delete Template - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <h1 style="margin:6px 0 0;">Delete Template</h1>
+            <p class="muted" style="margin:4px 0 0;">Confirm deletion of voucher template</p>
+        </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div class="section-card" style="margin-bottom:16px; border-left:4px solid #ef4444;">
+        <div style="display:flex; align-items:flex-start; gap:12px;">
+            <div style="font-size:24px;">⚠️</div>
+            <div>
+                <h3 style="margin:0 0 8px; color:#dc2626;">Are you sure you want to delete this template?</h3>
+                <p style="margin:0; color:#6b7280;">
+                    This action cannot be undone. The template will be permanently removed from the system.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Info -->
+    <div class="section-card" style="margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+            {% if template.logo %}
+            <img src="{{ template.logo.url }}" alt="{{ template.name }}" 
+                 style="width:60px; height:60px; object-fit:contain; border-radius:8px;">
+            {% else %}
+            <div style="width:60px; height:60px; background:#f3f4f6; border-radius:8px; 
+                        display:flex; align-items:center; justify-content:center;">
+                <span style="font-size:24px;">📄</span>
+            </div>
+            {% endif %}
+            <div>
+                <h3 style="margin:0 0 4px;">{{ template.name }}</h3>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    {% if template.is_default %}
+                    <span class="badge" style="background:#10b981; color:white;">Default</span>
+                    {% endif %}
+                    <span class="muted" style="font-size:12px;">
+                        Created {{ template.created_at|date:"M d, Y" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <h4 style="margin:0 0 8px; font-size:14px;">Template Details</h4>
+                <ul style="margin:0; padding-left:16px; font-size:14px; color:#6b7280;">
+                    <li>Form Title: {{ template.form_title }}</li>
+                    <li>Church: {{ template.church_name }}</li>
+                    <li>Used by {{ template.vouchers.count }} voucher{{ template.vouchers.count|pluralize }}</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="margin:0 0 8px; font-size:14px;">Sections Enabled</h4>
+                <ul style="margin:0; padding-left:16px; font-size:14px; color:#6b7280;">
+                    {% if template.show_urgent_items %}<li>Urgent Items</li>{% endif %}
+                    {% if template.show_important_items %}<li>Important Items</li>{% endif %}
+                    {% if template.show_permissible_items %}<li>Permissible Items</li>{% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Warning if template is in use -->
+        {% if template.vouchers.exists %}
+        <div style="margin-top:16px; padding:12px; background:#fef3c7; border-radius:6px;">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+                <span style="font-size:18px;">⚠️</span>
+                <div>
+                    <strong style="color:#92400e;">Warning:</strong>
+                    <p style="margin:4px 0 0; font-size:14px; color:#92400e;">
+                        This template is being used by {{ template.vouchers.count }} voucher{{ template.vouchers.count|pluralize }}.
+                        Deleting it may affect those vouchers.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Delete Form -->
+    <div class="section-card">
+        <form method="post">
+            {% csrf_token %}
+            
+            <!-- Confirmation checkbox -->
+            <div style="margin-bottom:20px;">
+                <label style="display:flex; align-items:flex-start; gap:8px;">
+                    <input type="checkbox" name="confirm_delete" required style="margin-top:3px;">
+                    <span>
+                        I understand that this action cannot be undone and 
+                        I confirm that I want to delete the "{{ template.name }}" template.
+                    </span>
+                </label>
+            </div>
+
+            <!-- Form Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <a href="{% url 'voucher_template_list' %}" 
+                       style="padding:12px 20px; border:1px solid var(--border); border-radius:8px; text-decoration:none;">
+                        Cancel
+                    </a>
+                </div>
+                <div>
+                    <button type="submit" 
+                            style="padding:12px 24px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer;"
+                            onclick="return confirm('Are you absolutely sure? This cannot be undone.')">
+                        Delete Template
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Double confirmation for delete
+    var deleteForm = document.querySelector('form');
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            var confirmCheckbox = document.querySelector('input[name="confirm_delete"]');
+            if (!confirmCheckbox.checked) {
+                e.preventDefault();
+                alert('Please confirm that you want to delete this template by checking the box.');
+                return false;
+            }
+            
+            // Additional confirmation
+            if (!confirm('⚠️ FINAL WARNING: This will permanently delete the template. Are you absolutely sure?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

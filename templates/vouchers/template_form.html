@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}Create Voucher Template - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <h1 style="margin:6px 0 0;">
+                Create Voucher Template
+            </h1>
+            <p class="muted" style="margin:4px 0 0;">
+                Design your custom voucher form header and layout
+            </p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="section-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- Hidden field to redirect back to voucher creation -->
+            <input type="hidden" name="redirect_to_voucher" value="{{ request.GET.redirect_to_voucher|default:'false' }}">
+            
+            <div class="content-grid" style="gap:24px;">
+                <!-- Left Column -->
+                <div>
+                    <!-- Basic Information -->
+                    <div class="form-group">
+                        <label class="form-label required">Template Name</label>
+                        <input type="text" class="form-input {% if errors.name %}error{% endif %}" 
+                               name="name"
+                               value="{% if data.name %}{{ data.name }}{% endif %}"
+                               placeholder="e.g., Default Funds Requisition Form"
+                               required>
+                        {% if errors.name %}
+                        <div class="form-error">{{ errors.name }}</div>
+                        {% endif %}
+                        <div class="form-hint">Give this template a descriptive name</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Church Name</label>
+                        <input type="text" class="form-input" 
+                               name="church_name"
+                               value="{% if data.church_name %}{{ data.church_name }}{% else %}{{ organization.name }}{% endif %}"
+                               placeholder="Your church/organization name">
+                        <div class="form-hint">Will appear at the top of the form</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Church Motto/Tagline</label>
+                        <input type="text" class="form-input" 
+                               name="church_motto"
+                               value="{% if data.church_motto %}{{ data.church_motto }}{% endif %}"
+                               placeholder="e.g., Unveiling Christ, Communicating Eternal Life.">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Form Title</label>
+                        <input type="text" class="form-input" 
+                               name="form_title"
+                               value="{% if data.form_title %}{{ data.form_title }}{% else %}Funds Requisition Form{% endif %}"
+                               placeholder="e.g., Funds Requisition Form"
+                               required>
+                        <div class="form-hint">Main title of the voucher form</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Form Description</label>
+                        <textarea class="form-input" name="description" rows="3">{% if data.description %}{{ data.description }}{% else %}This form is used to request for funding already approved by the department.{% endif %}</textarea>
+                        <div class="form-hint">Brief description of the form's purpose</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Warning/Important Notice</label>
+                        <textarea class="form-input" name="warning_text" rows="2">{% if data.warning_text %}{{ data.warning_text }}{% else %}YOU MUST BE THE LEADER OF A COMMUNITY / DEPARTMENT TO REQUEST FUNDING.{% endif %}</textarea>
+                        <div class="form-hint">Important notice that appears in red</div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <!-- Logo Upload -->
+                   <!-- Logo Upload -->
+                    <div class="form-group">
+                        <label class="form-label">Church Logo</label>
+                        <div style="border:2px dashed var(--border); border-radius:8px; padding:20px; text-align:center;">
+                            {% if template and template.logo %}
+                            <div style="margin-bottom:16px;">
+                                <img src="{{ template.logo.url }}" alt="Current logo" 
+                                    style="max-width: 150px; max-height: 80px; margin-bottom: 8px;">
+                                <div>
+                                    <label style="display:flex; align-items:center; gap:8px; font-size:14px;">
+                                        <input type="checkbox" name="clear_logo" value="true">
+                                        <span>Remove current logo</span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div style="margin-bottom:12px;">
+                                <input type="file" name="logo" accept="image/*" 
+                                    style="display: block; margin: 0 auto 12px;">
+                            </div>
+                            
+                            <div class="form-hint">Upload your church logo (optional)</div>
+                            <div class="form-hint">Recommended: 150x80px, PNG or JPG</div>
+                            <div class="form-hint">
+                                {% if template and template.logo %}
+                                Leave empty to keep current logo
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Form Sections -->
+                    <div class="form-group">
+                        <label class="form-label">Show Item Sections</label>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="checkbox" name="show_urgent_items" 
+                                       {% if data.show_urgent_items == 'on' or not data %}checked{% endif %}>
+                                <span>Show "URGENT" items section</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="checkbox" name="show_important_items" 
+                                       {% if data.show_important_items == 'on' or not data %}checked{% endif %}>
+                                <span>Show "IMPORTANT" items section</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="checkbox" name="show_permissible_items" 
+                                       {% if data.show_permissible_items == 'on' or not data %}checked{% endif %}>
+                                <span>Show "PERMISSIBLE" items section</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Signature Labels -->
+                    <div class="form-group">
+                        <label class="form-label">Signature Section Labels</label>
+                        <input type="text" class="form-input" 
+                               name="signature_label"
+                               value="{% if data.signature_label %}{{ data.signature_label }}{% else %}Department Leader Signature{% endif %}"
+                               placeholder="Signature label">
+                        <div class="form-hint">Label for the signature field</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Date Label</label>
+                        <input type="text" class="form-input" 
+                               name="date_label"
+                               value="{% if data.date_label %}{{ data.date_label }}{% else %}Date{% endif %}"
+                               placeholder="Date label">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phone Label</label>
+                        <input type="text" class="form-input" 
+                               name="phone_label"
+                               value="{% if data.phone_label %}{{ data.phone_label }}{% else %}Phone Number{% endif %}"
+                               placeholder="Phone number label">
+                    </div>
+
+                    <!-- Default Commitments -->
+                    <div class="form-group">
+                        <label class="form-label">Default Usage Commitment</label>
+                        <textarea class="form-input" name="default_usage_commitment" rows="3">{% if data.default_usage_commitment %}{{ data.default_usage_commitment }}{% else %}I commit to use the funds for the intended purpose only and will provide receipts for all expenses.{% endif %}</textarea>
+                        <div class="form-hint">Default text for usage commitment section</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Default Maintenance Commitment</label>
+                        <textarea class="form-input" name="default_maintenance_commitment" rows="3">{% if data.default_maintenance_commitment %}{{ data.default_maintenance_commitment }}{% else %}I commit to properly maintain any equipment purchased with these funds and report any issues promptly.{% endif %}</textarea>
+                        <div class="form-hint">Default text for maintenance commitment section</div>
+                    </div>
+
+                    <!-- Default Template -->
+                    <div class="form-group">
+                        <label style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" name="is_default" 
+                                   {% if data.is_default == 'true' or not data %}checked{% endif %}>
+                            <span style="font-weight:600;">Set as default template</span>
+                        </label>
+                        <div class="form-hint">This template will be selected by default when creating vouchers</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="form-group" style="margin-top:24px;">
+                <label class="form-label">Template Preview</label>
+                <div style="border:1px solid var(--border); border-radius:8px; padding:20px; background:#f9fafb;">
+                    <div style="text-align:center; margin-bottom:20px;">
+                        <div style="width:150px; height:80px; background:#e5e7eb; margin:0 auto 12px; display:flex; align-items:center; justify-content:center;">
+                            <span style="color:#6b7280;">Logo Preview</span>
+                        </div>
+                        <h3 style="margin:8px 0 4px;" id="previewChurchName">
+                            {{ organization.name }}
+                        </h3>
+                        <p class="muted" style="margin:0 0 8px;" id="previewChurchMotto">
+                            Church motto will appear here
+                        </p>
+                        <h4 style="margin:0 0 8px; color:var(--primary);" id="previewFormTitle">
+                            Funds Requisition Form
+                        </h4>
+                        <p style="margin:0 0 8px; font-size:14px;" id="previewDescription">
+                            Form description will appear here
+                        </p>
+                        <p style="margin:0; font-size:14px; font-weight:700; color:#dc2626;" id="previewWarning">
+                            Important warning text will appear here
+                        </p>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div>
+                            <h5 style="margin:0 0 8px;">Item Sections</h5>
+                            <ul style="margin:0; padding-left:16px; font-size:14px;">
+                                <li id="previewUrgentSection">✓ URGENT items section</li>
+                                <li id="previewImportantSection">✓ IMPORTANT items section</li>
+                                <li id="previewPermissibleSection">✓ PERMISSIBLE items section</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 style="margin:0 0 8px;">Signature Labels</h5>
+                            <ul style="margin:0; padding-left:16px; font-size:14px;">
+                                <li id="previewSignatureLabel">Department Leader Signature: ____________</li>
+                                <li id="previewDateLabel">Date: ______________</li>
+                                <li id="previewPhoneLabel">Phone Number: ______________</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+                <div>
+                    <a href="{% url 'voucher_template_list' %}" 
+                       style="padding:12px 20px; border:1px solid var(--border); border-radius:8px; text-decoration:none;">
+                        Cancel
+                    </a>
+                </div>
+                <div>
+                    <button type="submit" 
+                            style="padding:12px 24px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">
+                        Create Template
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Live preview updates
+    function updatePreview() {
+        // Update church name
+        var churchName = document.querySelector('input[name="church_name"]').value;
+        document.getElementById('previewChurchName').textContent = churchName || '{{ organization.name }}';
+        
+        // Update church motto
+        var churchMotto = document.querySelector('input[name="church_motto"]').value;
+        document.getElementById('previewChurchMotto').textContent = churchMotto || 'Church motto will appear here';
+        
+        // Update form title
+        var formTitle = document.querySelector('input[name="form_title"]').value;
+        document.getElementById('previewFormTitle').textContent = formTitle || 'Funds Requisition Form';
+        
+        // Update description
+        var description = document.querySelector('textarea[name="description"]').value;
+        document.getElementById('previewDescription').textContent = description || 'Form description will appear here';
+        
+        // Update warning text
+        var warning = document.querySelector('textarea[name="warning_text"]').value;
+        document.getElementById('previewWarning').textContent = warning || 'Important warning text will appear here';
+        
+        // Update item sections
+        var urgentCheckbox = document.querySelector('input[name="show_urgent_items"]');
+        var importantCheckbox = document.querySelector('input[name="show_important_items"]');
+        var permissibleCheckbox = document.querySelector('input[name="show_permissible_items"]');
+        
+        if (urgentCheckbox) {
+            document.getElementById('previewUrgentSection').textContent = 
+                urgentCheckbox.checked ? '✓ URGENT items section' : '✗ URGENT items section (hidden)';
+        }
+        
+        if (importantCheckbox) {
+            document.getElementById('previewImportantSection').textContent = 
+                importantCheckbox.checked ? '✓ IMPORTANT items section' : '✗ IMPORTANT items section (hidden)';
+        }
+        
+        if (permissibleCheckbox) {
+            document.getElementById('previewPermissibleSection').textContent = 
+                permissibleCheckbox.checked ? '✓ PERMISSIBLE items section' : '✗ PERMISSIBLE items section (hidden)';
+        }
+        
+        // Update signature labels
+        var signatureLabel = document.querySelector('input[name="signature_label"]').value;
+        var dateLabel = document.querySelector('input[name="date_label"]').value;
+        var phoneLabel = document.querySelector('input[name="phone_label"]').value;
+        
+        document.getElementById('previewSignatureLabel').textContent = 
+            (signatureLabel || 'Department Leader Signature') + ': ____________';
+        document.getElementById('previewDateLabel').textContent = 
+            (dateLabel || 'Date') + ': ______________';
+        document.getElementById('previewPhoneLabel').textContent = 
+            (phoneLabel || 'Phone Number') + ': ______________';
+    }
+    
+    // Attach event listeners to all form inputs
+    var formInputs = document.querySelectorAll('input[type="text"], input[type="checkbox"], textarea, select');
+    formInputs.forEach(function(input) {
+        input.addEventListener('input', updatePreview);
+        input.addEventListener('change', updatePreview);
+    });
+    
+    // Logo preview
+    var logoInput = document.querySelector('input[name="logo"]');
+    if (logoInput) {
+        logoInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var previewDiv = document.querySelector('#previewChurchName').parentNode;
+                    var existingImg = previewDiv.querySelector('img');
+                    var existingDiv = previewDiv.querySelector('div');
+                    
+                    if (existingImg) {
+                        existingImg.src = e.target.result;
+                    } else if (existingDiv) {
+                        existingDiv.innerHTML = '<img src="' + e.target.result + '" style="max-width:150px; max-height:80px;">';
+                    }
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+    }
+    
+    // Initialize preview
+    updatePreview();
+    
+    // Form validation
+    var form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var templateName = document.querySelector('input[name="name"]').value.trim();
+            var formTitle = document.querySelector('input[name="form_title"]').value.trim();
+            
+            if (!templateName) {
+                e.preventDefault();
+                alert('Template name is required');
+                document.querySelector('input[name="name"]').focus();
+                return false;
+            }
+            
+            if (!formTitle) {
+                e.preventDefault();
+                alert('Form title is required');
+                document.querySelector('input[name="form_title"]').focus();
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

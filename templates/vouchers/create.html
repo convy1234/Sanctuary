@@ -1,0 +1,1022 @@
+{% extends "base.html" %}
+{% block title %}Create Voucher - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <h1 style="margin:6px 0 0;">Create New Voucher</h1>
+            <p class="muted" style="margin:4px 0 0;">Complete the funds requisition form</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    {% if messages %}
+    <div class="card" style="margin-bottom:14px;">
+        {% for message in messages %}
+        <div style="padding:12px; background:
+            {% if message.tags == 'success' %}#d1fae5;
+            {% elif message.tags == 'error' %}#fee2e2;
+            {% elif message.tags == 'warning' %}#fef3c7;
+            {% else %}#f3f4f6;
+            {% endif %}
+            border-radius:8px; margin-bottom:8px;">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Template Selection Section -->
+    <div class="section-card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0;">📄 Select Voucher Template</h3>
+            <div>
+                <a href="{% url 'voucher_template_create' %}?redirect_to_voucher=true" 
+                   class="pill" style="background:var(--primary); color:white;">
+                    + Create New Template
+                </a>
+                <a href="{% url 'voucher_template_list' %}" 
+                   class="pill" style="background:#f3f4f6;">
+                    Manage Templates
+                </a>
+            </div>
+        </div>
+        
+        <!-- Template Options -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px;">
+            {% for tmpl in available_templates %}
+            <div class="template-option {% if tmpl.id == template.id %}selected{% endif %}" 
+                 style="padding:16px; border:2px solid {% if tmpl.id == template.id %}var(--primary){% else %}var(--border){% endif %}; 
+                        border-radius:8px; cursor:pointer; background:white;"
+                 onclick="selectTemplate('{{ tmpl.id }}')">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    {% if tmpl.logo %}
+                    <img src="{{ tmpl.logo.url }}" alt="{{ tmpl.name }}" 
+                         style="width:40px; height:40px; object-fit:contain; border-radius:6px;">
+                    {% else %}
+                    <div style="width:40px; height:40px; background:var(--primary-soft); 
+                                border-radius:6px; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size:20px;">📄</span>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div style="font-weight:700; font-size:15px;">{{ tmpl.name }}</div>
+                        {% if tmpl.is_default %}
+                        <span class="badge" style="background:#10b981; color:white; font-size:10px;">Default</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="font-size:13px; color:#6b7280; margin-bottom:8px;">
+                    {{ tmpl.form_title|truncatechars:40 }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <input type="hidden" name="template_id" value="{{ template.id }}" id="selectedTemplate">
+    </div>
+
+    <!-- Form Header (Dynamic from Template) -->
+    <div class="section-card" style="margin-bottom:16px; text-align:center; background:white;">
+        {% if template.logo %}
+        <img src="{{ template.logo.url }}" alt="{{ template.church_name }}" 
+             style="max-width: 150px; max-height: 80px; margin-bottom: 12px;">
+        {% endif %}
+        <h2 style="margin:0 0 8px;">{{ template.church_name }}</h2>
+        {% if template.church_motto %}
+        <p class="muted" style="margin:0 0 8px;">{{ template.church_motto }}</p>
+        {% endif %}
+        <h3 style="margin:0 0 8px; color:var(--primary);">{{ template.form_title }}</h3>
+        {% if template.description %}
+        <p style="margin:0 0 4px; font-size:14px;">
+            {{ template.description }}
+        </p>
+        {% endif %}
+        {% if template.warning_text %}
+        <p style="margin:0; font-size:14px; font-weight:700; color:#dc2626;">
+            {{ template.warning_text }}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Main Form -->
+    <div class="section-card">
+        <form method="post" enctype="multipart/form-data" novalidate id="voucherForm">
+            {% csrf_token %}
+            <input type="hidden" name="template_id" value="{{ template.id }}" id="formTemplateId">
+            
+            <div class="content-grid" style="gap:24px;">
+                <!-- Left Column -->
+                <div>
+                    <!-- Basic Info -->
+                    <div class="form-group">
+                        <label class="form-label">Today's Date</label>
+                        <input type="text" class="form-input" 
+                               value="{% now 'd / m / Y' %}" readonly>
+                        <div class="form-hint">Auto-filled with current date</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Your Name & Department</label>
+                        <input type="text" class="form-input {% if errors.requester_name_department %}error{% endif %}" 
+                               name="requester_name_department"
+                               value="{{ data.requester_name_department|default:user.get_full_name }}"
+                               placeholder="e.g., John Doe - Music Department"
+                               required>
+                        {% if errors.requester_name_department %}
+                        <div class="form-error">{{ errors.requester_name_department }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Reason(s) for purchasing the items / services</label>
+                        <textarea class="form-input {% if errors.purpose %}error{% endif %}" 
+                                  name="purpose" rows="4" 
+                                  placeholder="Be specific about what you need and why..."
+                                  required>{{ data.purpose|default:'' }}</textarea>
+                        {% if errors.purpose %}
+                        <div class="form-error">{{ errors.purpose }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Items Section -->
+                    <div class="form-group">
+                        <label class="form-label">Items by Priority</label>
+                        
+                        {% if template.show_urgent_items %}
+                        <div style="margin-bottom:16px;">
+                            <div class="badge" style="background:#dc2626; color:white; margin-bottom:8px;">URGENT</div>
+                            <textarea class="form-input" name="urgent_items" rows="3" 
+                                      placeholder="List urgent items with prices (one per line)&#10;Example: 4 tweeter horns @ $50.93 (1,545 per dollar)">{{ data.urgent_items|default:'' }}</textarea>
+                            <div class="form-hint">Items that are critically needed immediately</div>
+                        </div>
+                        {% endif %}
+
+                        {% if template.show_important_items %}
+                        <div style="margin-bottom:16px;">
+                            <div class="badge" style="background:#f59e0b; color:white; margin-bottom:8px;">IMPORTANT</div>
+                            <textarea class="form-input" name="important_items" rows="3" 
+                                      placeholder="List important items with prices (one per line)">{{ data.important_items|default:'' }}</textarea>
+                            <div class="form-hint">Items needed soon but not immediately critical</div>
+                        </div>
+                        {% endif %}
+
+                        {% if template.show_permissible_items %}
+                        <div>
+                            <div class="badge" style="background:#10b981; color:white; margin-bottom:8px;">PERMISSIBLE</div>
+                            <textarea class="form-input" name="permissible_items" rows="3" 
+                                      placeholder="List permissible items with prices (one per line)">{{ data.permissible_items|default:'' }}</textarea>
+                            <div class="form-hint">Items that would be nice to have if budget allows</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <!-- Financial Info -->
+                    <div class="form-group">
+                        <label class="form-label required">Total amount requested in words</label>
+                        <input type="text" class="form-input {% if errors.amount_in_words %}error{% endif %}" 
+                               name="amount_in_words"
+                               value="{{ data.amount_in_words|default:'' }}"
+                               placeholder="e.g., seventy eight thousand, two hundred and forty naira only"
+                               required>
+                        {% if errors.amount_in_words %}
+                        <div class="form-error">{{ errors.amount_in_words }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Total amount requested in figures</label>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="padding:12px; background:#f3f4f6; border-radius:8px 0 0 8px;">₦</span>
+                            <input type="number" class="form-input {% if errors.amount_in_figures %}error{% endif %}" 
+                                   name="amount_in_figures"
+                                   value="{{ data.amount_in_figures|default:'' }}"
+                                   step="0.01" min="0" 
+                                   style="border-radius:0 8px 8px 0;"
+                                   required>
+                        </div>
+                        {% if errors.amount_in_figures %}
+                        <div class="form-error">{{ errors.amount_in_figures }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Funds are payable to</label>
+                        <input type="text" class="form-input {% if errors.payable_to %}error{% endif %}" 
+                               name="payable_to"
+                               value="{{ data.payable_to|default:'' }}"
+                               placeholder="e.g., SamTech Opay 90123456653"
+                               required>
+                        {% if errors.payable_to %}
+                        <div class="form-error">{{ errors.payable_to }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Phone Number of Payee</label>
+                        <input type="tel" class="form-input {% if errors.payee_phone %}error{% endif %}" 
+                               name="payee_phone"
+                               value="{{ data.payee_phone|default:'' }}"
+                               placeholder="e.g., 09011273387"
+                               required>
+                        {% if errors.payee_phone %}
+                        <div class="form-error">{{ errors.payee_phone }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">When is the requested fund needed</label>
+                        <input type="date" class="form-input {% if errors.needed_by %}error{% endif %}" 
+                               name="needed_by"
+                               value="{{ data.needed_by|default:'' }}"
+                               required>
+                        {% if errors.needed_by %}
+                        <div class="form-error">{{ errors.needed_by }}</div>
+                        {% endif %}
+                        <div class="form-hint">When do you need the funds by?</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Preferred mode of payment</label>
+                        <select class="form-input" name="payment_method">
+                            {% for value, label in payment_methods %}
+                            <option value="{{ value }}" 
+                                    {% if data.payment_method == value or not data.payment_method and value == 'transfer' %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Currency -->
+                    <div class="form-group">
+                        <label class="form-label">Currency</label>
+                        <select class="form-input" name="currency">
+                            <option value="NGN" selected>Nigerian Naira (NGN)</option>
+                            <option value="USD">US Dollar (USD)</option>
+                            <option value="GBP">British Pound (GBP)</option>
+                            <option value="EUR">Euro (EUR)</option>
+                        </select>
+                    </div>
+
+                    <!-- Attachments -->
+                    <div class="form-group">
+                        <label class="form-label">Supporting Documents</label>
+                        <input type="file" class="form-input" 
+                               name="attachments" multiple>
+                        <div class="form-hint">Upload quotes, receipts, or other supporting documents (optional)</div>
+                    </div>
+
+                    <!-- Signature Section -->
+                   <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+    <h4 style="margin-bottom:16px;">{{ template.signature_label|default:"Signature Section" }}</h4>
+    
+    <div class="form-group">
+        <label class="form-label">{{ template.signature_label|default:"Department Leader Signature" }}</label>
+        
+        <!-- Signature Capture Container -->
+        <div style="margin-bottom:16px;">
+            <!-- Signature Canvas -->
+            <div style="border:2px dashed #ccc; border-radius:8px; padding:10px; margin-bottom:12px; background:#fff;">
+                <canvas id="signatureCanvas" 
+                        width="600" 
+                        height="200"
+                        style="width:100%; height:200px; touch-action:none; cursor:crosshair; background:#f9f9f9;">
+                    Your browser does not support the canvas element.
+                </canvas>
+            </div>
+            
+            <!-- Signature Controls -->
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+                        <button type="button" id="clearSignature" 
+                                style="padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">
+                            Clear Signature
+                        </button>
+                        <button type="button" id="undoSignature" 
+                                style="padding:8px 16px; background:#6b7280; color:white; border:none; border-radius:6px; cursor:pointer;">
+                            Undo Last Stroke
+                        </button>
+                        <button type="button" id="saveSignature" 
+                                style="padding:8px 16px; background:#10b981; color:white; border:none; border-radius:6px; cursor:pointer;">
+                            Save Signature
+                        </button>
+                        
+                        <!-- Upload Signature Button -->
+                        <label style="padding:8px 16px; background:#3b82f6; color:white; border-radius:6px; cursor:pointer;">
+                            Upload Signature
+                            <input type="file" id="uploadSignature" accept="image/*" style="display:none;">
+                        </label>
+                    </div>
+                    
+                    <!-- Signature Preview -->
+                    <div id="signaturePreview" style="display:none; margin-top:12px;">
+                        <p style="margin:0 0 8px; font-size:14px; color:#6b7280;">Signature Preview:</p>
+                        <img id="signaturePreviewImage" 
+                            style="max-width:300px; max-height:100px; border:1px solid #ddd; border-radius:4px;">
+                    </div>
+                    
+                    <!-- Hidden input for signature data -->
+                    <input type="hidden" id="signatureData" name="signature_data">
+                    <input type="file" id="signatureFile" name="signature_image" accept="image/*" style="display:none;">
+                    
+                    <!-- Current signature display (for edits) -->
+                    {% if voucher and voucher.requester_signature_image %}
+                    <div style="margin-top:12px;">
+                        <p style="margin:0 0 8px; font-size:14px; color:#6b7280;">Current Signature:</p>
+                        <img src="{{ voucher.requester_signature_image.url }}" 
+                            style="max-width:300px; max-height:100px; border:1px solid #ddd; border-radius:4px;">
+                        <div class="form-hint">This is your current signature. Draw a new one above to replace it.</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-hint">
+                        Draw your signature in the box above, or upload an image of your signature.
+                        Your signature is required for submission.
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ template.date_label|default:"Date" }}</label>
+                <input type="date" class="form-input" 
+                    name="requester_signed_date"
+                    value="{% now 'Y-m-d' %}">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">{{ template.phone_label|default:"Phone Number" }}</label>
+                <input type="tel" class="form-input" 
+                    name="requester_phone"
+                    value="{{ data.requester_phone|default:'' }}"
+                    placeholder="Your phone number for verification">
+            </div>
+        </div>
+                    
+                    <!-- Commitments (from template) -->
+                    <div class="form-group" style="margin-top:20px;">
+                        <label class="form-label">Usage Commitment</label>
+                        <textarea class="form-input" name="usage_commitment" rows="2">{{ template.default_usage_commitment|default:default_usage_commitment }}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Maintenance Commitment</label>
+                        <textarea class="form-input" name="maintenance_commitment" rows="2">{{ template.default_maintenance_commitment|default:default_maintenance_commitment }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="margin:32px 0; border:none; border-top:1px solid var(--border);">
+
+            <!-- Form Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <input type="checkbox" id="auto_submit" name="auto_submit" value="true">
+                    <label for="auto_submit" style="margin-left:8px;">Submit for approval immediately after saving</label>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <a href="{% url 'voucher_list' %}" style="padding:12px 20px; border:1px solid var(--border); border-radius:8px;">Cancel</a>
+                    <button type="submit" name="action" value="save_draft" 
+                            style="padding:12px 20px; background:#6b7280; color:white; border:none; border-radius:8px; cursor:pointer;">
+                        Save as Draft
+                    </button>
+                    <button type="submit" name="action" value="submit" 
+                            style="padding:12px 20px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">
+                        Save & Submit
+                    </button>
+
+                <button type="button" id="saveBlankBtn"
+                        style="padding:12px 20px; background:#9ca3af; color:white; border:none; border-radius:8px; cursor:pointer;">
+                    Save as Blank
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.template-option {
+    transition: all 0.2s ease;
+}
+
+.template-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.template-option.selected {
+    background: #f0f9ff;
+    border-color: var(--primary) !important;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.form-input.error {
+    border-color: #ef4444;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.form-label.required::after {
+    content: " •";
+    color: #ef4444;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.form-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+
+/* Signature Section Styles */
+.signature-container {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+.signature-instructions {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 12px;
+}
+
+.signature-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.signature-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.signature-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.signature-btn-clear {
+    background: #ef4444;
+    color: white;
+}
+
+.signature-btn-undo {
+    background: #6b7280;
+    color: white;
+}
+
+.signature-btn-save {
+    background: #10b981;
+    color: white;
+}
+
+.signature-btn-upload {
+    background: #3b82f6;
+    color: white;
+}
+
+.signature-preview {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.signature-preview h5 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    #signatureCanvas {
+        height: 150px;
+    }
+    
+    .signature-actions {
+        flex-direction: column;
+    }
+    
+    .signature-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set needed_by date to tomorrow by default
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    var formattedDate = tomorrow.toISOString().split('T')[0];
+    document.querySelector('input[name="needed_by"]').value = formattedDate;
+    
+    // Set today's date for signature
+    document.querySelector('input[name="requester_signed_date"]').value = new Date().toISOString().split('T')[0];
+
+    // Template selection
+    function selectTemplate(templateId) {
+        // Update hidden input
+        document.getElementById('selectedTemplate').value = templateId;
+        document.getElementById('formTemplateId').value = templateId;
+        
+        // Update UI
+        document.querySelectorAll('.template-option').forEach(function(option) {
+            option.style.borderColor = 'var(--border)';
+            option.style.background = 'white';
+        });
+        event.currentTarget.style.borderColor = 'var(--primary)';
+        event.currentTarget.style.background = '#f0f9ff';
+        
+        // Optional: Reload page with new template
+        window.location.href = "{% url 'voucher_create' %}?template=" + templateId;
+    }
+
+    // Format amount when input changes
+    var amountInput = document.querySelector('input[name="amount_in_figures"]');
+    if (amountInput) {
+        amountInput.addEventListener('change', function() {
+            var amount = parseFloat(this.value);
+            if (!isNaN(amount)) {
+                this.value = amount.toFixed(2);
+                
+                // Update amount in words placeholder
+                var wordsInput = document.querySelector('input[name="amount_in_words"]');
+                if (amount > 0 && !wordsInput.value) {
+                    wordsInput.placeholder = formatAmountToWords(amount) + ' only';
+                }
+            }
+        });
+    }
+
+    function formatAmountToWords(amount) {
+        // Simple number to words conversion
+        var units = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+        var teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+        var tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+        
+        if (amount === 0) return 'zero';
+        if (amount < 10) return units[Math.floor(amount)];
+        if (amount < 20) return teens[Math.floor(amount) - 10];
+        if (amount < 100) {
+            var ten = Math.floor(amount / 10);
+            var unit = Math.floor(amount % 10);
+            return tens[ten] + (unit > 0 ? '-' + units[unit] : '');
+        }
+        
+        // For larger numbers, use a library or simple format
+        return amount.toLocaleString('en-US') + ' naira';
+    }
+
+    // Form validation - SKIP VALIDATION FOR SAVE AS BLANK
+    var form = document.getElementById('voucherForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var submitter = e.submitter;
+            var isSaveBlank = submitter && submitter.id === 'saveBlankBtn';
+            
+            // SKIP ALL VALIDATION FOR SAVE AS BLANK
+            if (isSaveBlank) {
+                return true; // Allow form submission
+            }
+            
+            var isValid = true;
+            var firstError = null;
+            
+            // Check required fields
+            var requiredFields = form.querySelectorAll('[required]');
+            requiredFields.forEach(function(field) {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('error');
+                    if (!field.nextElementSibling || !field.nextElementSibling.classList.contains('form-error')) {
+                        var errorDiv = document.createElement('div');
+                        errorDiv.className = 'form-error';
+                        errorDiv.textContent = 'This field is required';
+                        field.parentNode.insertBefore(errorDiv, field.nextSibling);
+                    }
+                    if (!firstError) {
+                        firstError = field;
+                    }
+                } else {
+                    field.classList.remove('error');
+                    var errorMsg = field.nextElementSibling;
+                    if (errorMsg && errorMsg.classList.contains('form-error')) {
+                        errorMsg.remove();
+                    }
+                }
+            });
+
+            // Validate amount
+            if (amountInput) {
+                var amount = parseFloat(amountInput.value);
+                if (amount <= 0) {
+                    isValid = false;
+                    amountInput.classList.add('error');
+                    if (!firstError) firstError = amountInput;
+                }
+            }
+
+            // Validate date
+            var neededByInput = document.querySelector('input[name="needed_by"]');
+            if (neededByInput) {
+                var neededBy = new Date(neededByInput.value);
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (neededBy < today) {
+                    isValid = false;
+                    neededByInput.classList.add('error');
+                    if (!firstError) firstError = neededByInput;
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstError.focus();
+                }
+            }
+        });
+    }
+
+    // Auto-submit warning
+    var autoSubmitCheckbox = document.getElementById('auto_submit');
+    var submitButton = form.querySelector('button[value="submit"]');
+    if (submitButton) {
+        submitButton.addEventListener('click', function(e) {
+            if (autoSubmitCheckbox && autoSubmitCheckbox.checked) {
+                if (!confirm('Are you sure you want to submit this voucher for approval? You will not be able to edit it after submission.')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    }
+});
+
+
+
+// Signature Capture Functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('signatureCanvas');
+    const ctx = canvas.getContext('2d');
+    const clearBtn = document.getElementById('clearSignature');
+    const undoBtn = document.getElementById('undoSignature');
+    const saveBtn = document.getElementById('saveSignature');
+    const uploadBtn = document.getElementById('uploadSignature');
+    const signatureData = document.getElementById('signatureData');
+    const signatureFile = document.getElementById('signatureFile');
+    const previewDiv = document.getElementById('signaturePreview');
+    const previewImg = document.getElementById('signaturePreviewImage');
+    
+    let drawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let paths = []; // Store drawing paths for undo functionality
+    let currentPath = [];
+    
+    // Initialize canvas
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Draw instructions
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#999';
+    ctx.textAlign = 'center';
+    ctx.fillText('Draw your signature here', canvas.width / 2, canvas.height / 2);
+    
+    // Drawing functions
+    function startDrawing(e) {
+        drawing = true;
+        const pos = getMousePos(canvas, e);
+        [lastX, lastY] = [pos.x, pos.y];
+        currentPath = [{x: lastX, y: lastY}];
+    }
+    
+    function draw(e) {
+        if (!drawing) return;
+        
+        e.preventDefault();
+        const pos = getMousePos(canvas, e);
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        
+        currentPath.push({x: pos.x, y: pos.y});
+        [lastX, lastY] = [pos.x, pos.y];
+    }
+    
+    function stopDrawing() {
+        if (!drawing) return;
+        drawing = false;
+        if (currentPath.length > 1) {
+            paths.push(currentPath);
+        }
+    }
+    
+    function getMousePos(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        
+        if (evt.type.includes('touch')) {
+            clientX = evt.touches[0].clientX;
+            clientY = evt.touches[0].clientY;
+        } else {
+            clientX = evt.clientX;
+            clientY = evt.clientY;
+        }
+        
+        return {
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height)
+        };
+    }
+    
+    // Clear signature
+    clearBtn.addEventListener('click', function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        paths = [];
+        signatureData.value = '';
+        previewDiv.style.display = 'none';
+        signatureFile.value = '';
+        
+        // Redraw instructions
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'center';
+        ctx.fillText('Draw your signature here', canvas.width / 2, canvas.height / 2);
+    });
+    
+    // Undo last stroke
+    undoBtn.addEventListener('click', function() {
+        if (paths.length > 0) {
+            paths.pop();
+            redrawCanvas();
+        }
+    });
+    
+    // Save signature as image
+    saveBtn.addEventListener('click', function() {
+        // Check if signature is empty
+        const isEmpty = paths.length === 0;
+        
+        if (isEmpty) {
+            alert('Please draw your signature first');
+            return;
+        }
+        
+        // Convert canvas to data URL
+        const dataURL = canvas.toDataURL('image/png');
+        signatureData.value = dataURL;
+        
+        // Show preview
+        previewImg.src = dataURL;
+        previewDiv.style.display = 'block';
+        
+        // Convert data URL to blob and create file
+        const blob = dataURLtoBlob(dataURL);
+        const file = new File([blob], 'signature.png', {type: 'image/png'});
+        
+        // Create a new DataTransfer object and add the file
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        signatureFile.files = dataTransfer.files;
+        
+        alert('Signature saved successfully!');
+    });
+    
+    // Upload signature image
+    uploadBtn.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            // Validate file type
+            if (!file.type.match('image.*')) {
+                alert('Please upload an image file');
+                return;
+            }
+            
+            // Validate file size (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File size must be less than 2MB');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw uploaded image on canvas
+                const img = new Image();
+                img.onload = function() {
+                    // Calculate dimensions to fit canvas
+                    const scale = Math.min(
+                        canvas.width / img.width,
+                        canvas.height / img.height
+                    );
+                    const width = img.width * scale;
+                    const height = img.height * scale;
+                    const x = (canvas.width - width) / 2;
+                    const y = (canvas.height - height) / 2;
+                    
+                    ctx.drawImage(img, x, y, width, height);
+                    
+                    // Set signature data
+                    signatureData.value = canvas.toDataURL('image/png');
+                    
+                    // Show preview
+                    previewImg.src = e.target.result;
+                    previewDiv.style.display = 'block';
+                    
+                    // Set file input
+                    signatureFile.files = e.target.files;
+                    
+                    alert('Signature uploaded successfully!');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Helper function to convert data URL to blob
+    function dataURLtoBlob(dataURL) {
+        const parts = dataURL.split(';base64,');
+        const contentType = parts[0].split(':')[1];
+        const raw = window.atob(parts[1]);
+        const rawLength = raw.length;
+        const uInt8Array = new Uint8Array(rawLength);
+        
+        for (let i = 0; i < rawLength; ++i) {
+            uInt8Array[i] = raw.charCodeAt(i);
+        }
+        
+        return new Blob([uInt8Array], {type: contentType});
+    }
+    
+    // Redraw canvas from paths
+    function redrawCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Redraw all paths
+        paths.forEach(path => {
+            if (path.length < 2) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+            
+            ctx.stroke();
+        });
+    }
+    
+    // Event listeners for drawing
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    
+    // Touch events for mobile devices
+    canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        startDrawing(e);
+    });
+    canvas.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        draw(e);
+    });
+    canvas.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        stopDrawing();
+    });
+    
+    // Prevent scrolling when drawing on touch devices
+    canvas.addEventListener('touchmove', function(e) {
+        if (drawing) {
+            e.preventDefault();
+        }
+    }, {passive: false});
+    
+    // Form validation for signature
+    var form = document.getElementById('voucherForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var submitter = e.submitter;
+            var isSaveBlank = submitter && submitter.id === 'saveBlankBtn';
+            var isSubmitting = submitter && submitter.value === 'submit';
+            
+            // Skip signature validation for Save as Blank
+            if (isSaveBlank) {
+                return true;
+            }
+            
+            // Check if signature is required (for submitted vouchers)
+            if (isSubmitting && !signatureData.value && !signatureFile.files.length) {
+                e.preventDefault();
+                alert('Please provide your signature before submitting the voucher.');
+                
+                // Scroll to signature section
+                document.getElementById('signatureCanvas').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                
+                return false;
+            }
+        });
+    }
+});
+</script>
+
+
+<script>
+// Handle Save as Blank button - UPDATED VERSION
+document.getElementById('saveBlankBtn').addEventListener('click', function(e) {
+    e.preventDefault(); // Prevent form submission
+    
+    if (confirm('Create a blank voucher with NO pre-filled information? You can fill in details later.')) {
+        // Show loading
+        var originalText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = 'Creating...';
+        
+        // Get the current template ID from the form
+        var templateId = document.getElementById('formTemplateId').value;
+        var url = "{% url 'voucher_create_blank' %}";
+        
+        if (templateId) {
+            url = "{% url 'voucher_create_blank' %}" + "?template=" + templateId;
+        }
+        
+        // Redirect to the blank voucher creation endpoint
+        window.location.href = url;
+        
+        // Reset button after 3 seconds (in case redirect fails)
+        setTimeout(function() {
+            saveBlankBtn.disabled = false;
+            saveBlankBtn.innerHTML = originalText;
+        }, 3000);
+    }
+});
+</script>
+
+
+
+{% endblock %}

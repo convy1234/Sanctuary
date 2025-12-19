@@ -1,0 +1,360 @@
+<!-- templates/inventory/items/edit.html -->
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Edit {{ item.name }} - Inventory{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <p class="muted" style="margin:0;">{{ organization.name }}</p>
+                <h1 style="margin:6px 0 0;">Edit Item</h1>
+            </div>
+            <div>
+                <a href="{% url 'inventory_item_detail' item.id %}" class="pill">← Back to Item</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="content-grid" style="grid-template-columns:2fr 1fr; gap:20px;">
+        <div class="section-card">
+            <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:24px;">
+                {% csrf_token %}
+                
+                {% if errors %}
+                <div style="background:#fee2e2; color:#dc2626; padding:16px; border-radius:10px; margin-bottom:20px;">
+                    <strong>Please fix the following errors:</strong>
+                    <ul style="margin:8px 0 0 20px;">
+                        {% for field, error in errors.items %}
+                        <li>{{ field|title }}: {{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Basic Information -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Basic Information</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="name">Item Name *</label>
+                            <input type="text" id="name" name="name" value="{{ item.name }}" required>
+                        </div>
+                        <div>
+                            <label for="sku">SKU</label>
+                            <input type="text" id="sku" name="sku" value="{{ item.sku }}">
+                        </div>
+                        <div>
+                            <label for="barcode">Barcode</label>
+                            <input type="text" id="barcode" name="barcode" value="{{ item.barcode }}">
+                        </div>
+                        <div>
+                            <label for="asset_tag">Asset Tag</label>
+                            <input type="text" id="asset_tag" name="asset_tag" value="{{ item.asset_tag }}">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:16px;">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="3" style="width:100%;">{{ item.description }}</textarea>
+                    </div>
+                </div>
+                
+                <!-- Stock Information -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Stock Information</h3>
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
+                        <div>
+                            <label for="quantity">Current Quantity</label>
+                            <input type="number" id="quantity" name="quantity" value="{{ item.quantity }}" min="0">
+                        </div>
+                        <div>
+                            <label for="reorder_level">Reorder Level</label>
+                            <input type="number" id="reorder_level" name="reorder_level" value="{{ item.reorder_level }}" min="0">
+                        </div>
+                        <div>
+                            <label for="reorder_quantity">Reorder Quantity</label>
+                            <input type="number" id="reorder_quantity" name="reorder_quantity" value="{{ item.reorder_quantity }}" min="1">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:16px;">
+                        <label style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" name="alert_on_low" {% if item.alert_on_low %}checked{% endif %}>
+                            <span>Send alerts when stock is low</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Physical Attributes -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Physical Attributes</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="location">Location</label>
+                            <input type="text" id="location" name="location" value="{{ item.location }}" placeholder="Room, Shelf, Bin...">
+                        </div>
+                        <div>
+                            <label for="condition">Condition</label>
+                            <select id="condition" name="condition">
+                                {% for value, display in condition_choices %}
+                                <option value="{{ value }}" {% if item.condition == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="item_type">Item Type</label>
+                            <select id="item_type" name="item_type">
+                                {% for value, display in item_type_choices %}
+                                <option value="{{ value }}" {% if item.item_type == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="image">Image</label>
+                            {% if item.image %}
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                                <img src="{{ item.image.url }}" alt="{{ item.name }}" 
+                                     style="width:60px; height:60px; border-radius:8px; object-fit:cover;">
+                                <label style="font-size:13px;">
+                                    <input type="checkbox" name="clear_image" value="1">
+                                    Remove image
+                                </label>
+                            </div>
+                            {% endif %}
+                            <input type="file" id="image" name="image" accept="image/*">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:16px;">
+                        <label for="storage_instructions">Storage Instructions</label>
+                        <textarea id="storage_instructions" name="storage_instructions" rows="2" style="width:100%;">
+                            {{ item.storage_instructions }}
+                        </textarea>
+                    </div>
+                </div>
+                
+                <!-- Classification -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Classification</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="category">Category</label>
+                            <select id="category" name="category">
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if item.category.id == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="department">Department</label>
+                            <select id="department" name="department">
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" {% if item.department.id == department.id %}selected{% endif %}>
+                                    {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Financial Information -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Financial Information</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="purchase_price">Purchase Price (₦)</label>
+                            <input type="number" id="purchase_price" name="purchase_price" 
+                                   value="{{ item.purchase_price|floatformat:2 }}" 
+                                   step="0.01" min="0">
+                        </div>
+                        <div>
+                            <label for="vendor">Vendor</label>
+                            <select id="vendor" name="vendor">
+                                <option value="">Select Vendor</option>
+                                {% for vendor in vendors %}
+                                <option value="{{ vendor.id }}" {% if item.vendor.id == vendor.id %}selected{% endif %}>
+                                    {{ vendor.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="purchase_date">Purchase Date</label>
+                            <input type="date" id="purchase_date" name="purchase_date" 
+                                   value="{{ item.purchase_date|date:'Y-m-d' }}">
+                        </div>
+                        <div>
+                            <label for="warranty_expiry">Warranty Expiry</label>
+                            <input type="date" id="warranty_expiry" name="warranty_expiry" 
+                                   value="{{ item.warranty_expiry|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notes -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Notes</h3>
+                    <textarea id="notes" name="notes" rows="4" style="width:100%;">{{ item.notes }}</textarea>
+                </div>
+                
+                <!-- Form Actions -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border);">
+                    <div>
+                        <a href="{% url 'inventory_item_detail' item.id %}" style="color:var(--muted);">Cancel</a>
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <button type="submit" style="background:var(--primary); color:white;">Save Changes</button>
+                        <a href="{% url 'inventory_item_delete' item.id %}" 
+                           class="pill" 
+                           style="background:#fee2e2; color:#dc2626;"
+                           onclick="return confirm('Are you sure you want to delete this item?')">
+                            Delete Item
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Preview Sidebar -->
+        <div class="section-card">
+            <h3 style="margin-top:0;">Item Preview</h3>
+            <div style="margin-bottom:20px;">
+                {% if item.image %}
+                <img src="{{ item.image.url }}" alt="{{ item.name }}" 
+                     style="width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:16px;">
+                {% endif %}
+                <div>
+                    <div style="font-size:18px; font-weight:700; margin-bottom:8px;">{{ item.name }}</div>
+                    <div class="muted" style="font-size:14px; margin-bottom:16px;">
+                        {{ item.sku|default:"No SKU" }}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="border-top:1px solid var(--border); padding-top:16px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                    <span class="muted">Current Stock</span>
+                    <span style="font-weight:700;">{{ item.quantity }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                    <span class="muted">Status</span>
+                    <span style="padding:4px 8px; border-radius:6px; font-size:12px; font-weight:500; background:
+                        {% if item.quantity <= 0 %}#fee2e2; color:#dc2626;
+                        {% elif item.is_low_stock %}#fef3c7; color:#92400e;
+                        {% else %}#d1fae5; color:#065f46;
+                        {% endif %}">
+                        {% if item.quantity <= 0 %}Out of Stock
+                        {% elif item.is_low_stock %}Low Stock
+                        {% else %}In Stock
+                        {% endif %}
+                    </span>
+                </div>
+                {% if item.purchase_price %}
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                    <span class="muted">Unit Price</span>
+                    <span>₦{{ item.purchase_price|floatformat:2 }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span class="muted">Total Value</span>
+                    <span style="font-weight:700;">₦{{ item.total_value|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;">
+                <div class="muted" style="font-size:12px; margin-bottom:8px;">Quick Links</div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <a href="{% url 'inventory_checkout_create' %}?item={{ item.id }}" 
+                       class="quick-action" style="padding:12px;">
+                        📤 Checkout Item
+                    </a>
+                    <a href="#" class="quick-action" style="padding:12px;">
+                        📄 Print Label
+                    </a>
+                    <a href="#" class="quick-action" style="padding:12px;">
+                        📊 View Transactions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: var(--text);
+        font-size: 14px;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="file"],
+    select,
+    textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+    
+    button[type="submit"] {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    
+    button[type="submit"]:hover {
+        background: var(--primary-dark);
+    }
+    
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action:hover {
+        background: var(--primary-soft);
+        border-color: var(--primary);
+    }
+</style>
+{% endblock %}

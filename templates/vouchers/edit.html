@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+{% block title %}Edit Voucher {{ voucher.voucher_number }} - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:6px;">
+                <h1 style="margin:0;">Edit Voucher #{{ voucher.voucher_number }}</h1>
+                {% if voucher.status == 'draft' %}
+                <span class="badge" style="background:#f3f4f6; color:#374151;">Draft</span>
+                {% elif voucher.status == 'rejected' %}
+                <span class="badge" style="background:#fee2e2; color:#991b1b;">Rejected</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="actions">
+            <a href="{% url 'voucher_detail' voucher.id %}" class="pill">👁️ View</a>
+            <a href="{% url 'voucher_list' %}" class="pill">← Back to List</a>
+        </div>
+    </div>
+
+    <!-- Blank Voucher Alert -->
+    {% if is_blank_voucher and voucher.status == 'draft' %}
+    <div class="card" style="margin-bottom:14px; background:#fef3c7; border-left:4px solid #f59e0b;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:20px;">📝</span>
+            <div>
+                <strong>BLANK VOUCHER</strong>
+                <p class="muted" style="margin:4px 0 0;">
+                    This is a blank voucher created from the "Save as Blank" option. 
+                    You can save as draft with incomplete information, but all fields must be filled before submitting for approval.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Status Alert -->
+    {% if voucher.status == 'draft' and not is_blank_voucher %}
+    <div class="card" style="margin-bottom:14px; background:#f3f4f6; border-left:4px solid #9ca3af;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:20px;">📝</span>
+            <div>
+                <strong>DRAFT MODE</strong>
+                <p class="muted" style="margin:4px 0 0;">You can edit this voucher. Once submitted, it will need approval.</p>
+            </div>
+        </div>
+    </div>
+    {% elif voucher.status == 'rejected' %}
+    <div class="card" style="margin-bottom:14px; background:#fee2e2; border-left:4px solid #ef4444;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:20px;">⚠️</span>
+            <div>
+                <strong>REJECTED</strong>
+                <p class="muted" style="margin:4px 0 0;">This voucher was rejected. You can edit it and resubmit for approval.</p>
+                {% if voucher.finance_remarks %}
+                <p style="margin:4px 0 0;"><strong>Reason:</strong> {{ voucher.finance_remarks }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% elif voucher.status not in 'draft,rejected' %}
+    <div class="card" style="margin-bottom:14px; background:#dbeafe; border-left:4px solid #3b82f6;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:20px;">ℹ️</span>
+            <div>
+                <strong>READ-ONLY MODE</strong>
+                <p class="muted" style="margin:4px 0 0;">
+                    This voucher cannot be edited because its status is <strong>{{ voucher.get_status_display }}</strong>. 
+                    You can only add comments.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Form -->
+    <div class="section-card">
+        <form method="post" enctype="multipart/form-data" novalidate id="editForm">
+            {% csrf_token %}
+            
+            <div class="content-grid" style="gap:24px;">
+                <!-- Left Column -->
+                <div>
+                    <!-- Basic Info -->
+                    <div class="form-group">
+                        <label class="form-label">Today's Date</label>
+                        <input type="text" class="form-input" 
+                               value="{{ voucher.date_prepared|date:'d / m / Y' }}" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Voucher Number</label>
+                        <input type="text" class="form-input" 
+                               value="{{ voucher.voucher_number }}" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">Your Name & Department</label>
+                        <input type="text" class="form-input {% if errors.requester_name_department %}error{% endif %}" 
+                               name="requester_name_department"
+                               value="{{ data.requester_name_department|default:voucher.requester_name_department }}"
+                               {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                               placeholder="e.g., John Doe - Music Department"
+                               {% if not is_blank_voucher %}required{% endif %}>
+                        {% if errors.requester_name_department %}
+                        <div class="form-error">{{ errors.requester_name_department }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">Reason(s) for purchasing the items / services</label>
+                        <textarea class="form-input {% if errors.purpose %}error{% endif %}" 
+                                  name="purpose" rows="4"
+                                  {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                                  placeholder="Be specific about what you need and why..."
+                                  {% if not is_blank_voucher %}required{% endif %}>{{ data.purpose|default:voucher.purpose }}</textarea>
+                        {% if errors.purpose %}
+                        <div class="form-error">{{ errors.purpose }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Items Section -->
+                    <div class="form-group">
+                        <label class="form-label">Items by Priority</label>
+                        
+                        <div style="margin-bottom:16px;">
+                            <div class="badge" style="background:#dc2626; color:white; margin-bottom:8px;">URGENT</div>
+                            <textarea class="form-input" name="urgent_items" rows="3"
+                                      {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                                      placeholder="List urgent items with prices (one per line)">{{ data.urgent_items|default:voucher.urgent_items }}</textarea>
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <div class="badge" style="background:#f59e0b; color:white; margin-bottom:8px;">IMPORTANT</div>
+                            <textarea class="form-input" name="important_items" rows="3"
+                                      {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                                      placeholder="List important items with prices (one per line)">{{ data.important_items|default:voucher.important_items }}</textarea>
+                        </div>
+
+                        <div>
+                            <div class="badge" style="background:#10b981; color:white; margin-bottom:8px;">PERMISSIBLE</div>
+                            <textarea class="form-input" name="permissible_items" rows="3"
+                                      {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                                      placeholder="List permissible items with prices (one per line)">{{ data.permissible_items|default:voucher.permissible_items }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Current Attachments -->
+                    {% if voucher.attachments.all %}
+                    <div class="form-group">
+                        <label class="form-label">Current Attachments</label>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            {% for attachment in voucher.attachments.all %}
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:#f9fafb; border-radius:6px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span>📄</span>
+                                    <span style="font-size:14px;">{{ attachment.file_name|truncatechars:30 }}</span>
+                                </div>
+                                <a href="{{ attachment.file.url }}" target="_blank" 
+                                   style="padding:4px 8px; background:var(--primary-soft); border-radius:4px; font-size:12px;">Download</a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- New Attachments -->
+                    {% if voucher.status == 'draft' or voucher.status == 'rejected' %}
+                    <div class="form-group">
+                        <label class="form-label">Add More Attachments</label>
+                        <input type="file" class="form-input" 
+                               name="attachments" multiple>
+                        <div class="form-hint">Upload additional supporting documents</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <!-- Financial Info -->
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">Total amount requested in words</label>
+                        <input type="text" class="form-input {% if errors.amount_in_words %}error{% endif %}" 
+                               name="amount_in_words"
+                               value="{{ data.amount_in_words|default:voucher.amount_in_words }}"
+                               {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                               placeholder="e.g., seventy eight thousand, two hundred and forty naira only"
+                               {% if not is_blank_voucher %}required{% endif %}>
+                        {% if errors.amount_in_words %}
+                        <div class="form-error">{{ errors.amount_in_words }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">Total amount requested in figures</label>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="padding:12px; background:#f3f4f6; border-radius:8px 0 0 8px;">₦</span>
+                            <input type="number" class="form-input {% if errors.amount_in_figures %}error{% endif %}" 
+                                   name="amount_in_figures"
+                                   value="{{ data.amount_in_figures|default:voucher.amount_in_figures|floatformat:2 }}"
+                                   step="0.01" min="0"
+                                   style="border-radius:0 8px 8px 0;"
+                                   {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                                   {% if not is_blank_voucher %}required{% endif %}>
+                        </div>
+                        {% if errors.amount_in_figures %}
+                        <div class="form-error">{{ errors.amount_in_figures }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">Funds are payable to</label>
+                        <input type="text" class="form-input {% if errors.payable_to %}error{% endif %}" 
+                               name="payable_to"
+                               value="{{ data.payable_to|default:voucher.payable_to }}"
+                               {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                               placeholder="e.g., SamTech Opay 90123456653"
+                               {% if not is_blank_voucher %}required{% endif %}>
+                        {% if errors.payable_to %}
+                        <div class="form-error">{{ errors.payable_to }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">Phone Number of Payee</label>
+                        <input type="tel" class="form-input {% if errors.payee_phone %}error{% endif %}" 
+                               name="payee_phone"
+                               value="{{ data.payee_phone|default:voucher.payee_phone }}"
+                               {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                               placeholder="e.g., 09011273387"
+                               {% if not is_blank_voucher %}required{% endif %}>
+                        {% if errors.payee_phone %}
+                        <div class="form-error">{{ errors.payee_phone }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label {% if not is_blank_voucher %}required{% endif %}">When is the requested fund needed</label>
+                        <input type="date" class="form-input {% if errors.needed_by %}error{% endif %}" 
+                               name="needed_by"
+                               value="{{ data.needed_by|default:voucher.needed_by|date:'Y-m-d' }}"
+                               {% if voucher.status != 'draft' and voucher.status != 'rejected' %}readonly{% endif %}
+                               {% if not is_blank_voucher %}required{% endif %}>
+                        {% if errors.needed_by %}
+                        <div class="form-error">{{ errors.needed_by }}</div>
+                        {% endif %}
+                        <div class="form-hint">When do you need the funds by?</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Preferred mode of payment</label>
+                        <select class="form-input" name="payment_method"
+                                {% if voucher.status != 'draft' and voucher.status != 'rejected' %}disabled{% endif %}>
+                            {% for value, label in payment_methods %}
+                            <option value="{{ value }}" 
+                                    {% if voucher.payment_method == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Signature Section -->
+                    <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+                        <h4 style="margin-bottom:16px;">Signature Section</h4>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Department Leader Signature</label>
+                            <input type="text" class="form-input" 
+                                   name="requester_signature"
+                                   value="{{ data.requester_signature|default:voucher.requester_signature|default:'' }}"
+                                   placeholder="Your signature">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Signature Date</label>
+                            <input type="date" class="form-input" 
+                                   name="requester_signed_date"
+                                   value="{{ data.requester_signed_date|default:voucher.requester_signed_date|date:'Y-m-d' }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" class="form-input" 
+                                   name="requester_phone"
+                                   value="{{ data.requester_phone|default:voucher.requester_phone }}"
+                                   placeholder="Your phone number for verification">
+                        </div>
+                    </div>
+
+                    <!-- Commitments -->
+                    <div class="form-group">
+                        <label class="form-label">Usage Commitment</label>
+                        <textarea class="form-input" name="usage_commitment" rows="2">{{ data.usage_commitment|default:voucher.usage_commitment }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Maintenance Commitment</label>
+                        <textarea class="form-input" name="maintenance_commitment" rows="2">{{ data.maintenance_commitment|default:voucher.maintenance_commitment }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Comment Section -->
+            <div style="margin-top:32px; padding-top:32px; border-top:1px solid var(--border);">
+                <h3 style="margin-top:0; margin-bottom:16px;">💬 Add Comment or Note</h3>
+                <div class="form-group">
+                    <textarea class="form-input" name="comment" rows="3" 
+                              placeholder="Add a comment or note about this voucher..."></textarea>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                    <div>
+                        <input type="checkbox" id="is_internal" name="is_internal_comment">
+                        <label for="is_internal" style="margin-left:8px; font-size:14px;">Internal note (not visible to requester)</label>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="margin:32px 0; border:none; border-top:1px solid var(--border);">
+
+            <!-- Form Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    {% if voucher.status == 'draft' or voucher.status == 'rejected' %}
+                    <input type="checkbox" id="auto_submit" name="auto_submit" value="true">
+                    <label for="auto_submit" style="margin-left:8px;">Submit for approval after saving</label>
+                    {% endif %}
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <a href="{% url 'voucher_detail' voucher.id %}" 
+                       style="padding:12px 20px; border:1px solid var(--border); border-radius:8px;">Cancel</a>
+                    
+                    {% if voucher.status == 'draft' or voucher.status == 'rejected' %}
+                    <button type="submit" name="action" value="save" 
+                            style="padding:12px 20px; background:#6b7280; color:white; border:none; border-radius:8px; cursor:pointer;">
+                        Save Changes
+                    </button>
+                    <button type="submit" name="action" value="submit" 
+                            style="padding:12px 20px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">
+                        Save & Submit
+                    </button>
+                    {% else %}
+                    <button type="submit" 
+                            style="padding:12px 20px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">
+                        Save Comment
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Comments History -->
+    {% if comments %}
+    <div class="section-card" style="margin-top:20px;">
+        <h3 style="margin-top:0; margin-bottom:16px;">📝 Comments History</h3>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            {% for comment in comments %}
+            <div style="display:flex; gap:12px; padding:12px; background:{% if comment.is_internal %}#f3f4f6{% else %}#f9fafb{% endif %}; border-radius:8px;">
+                <div style="width:36px; height:36px; background:var(--primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    {{ comment.author.first_name|slice:":1"|upper }}{{ comment.author.last_name|slice:":1"|upper }}
+                </div>
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong>{{ comment.author.get_full_name }}</strong>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span class="muted" style="font-size:12px;">{{ comment.created_at|timesince }} ago</span>
+                            {% if comment.is_internal %}
+                            <span class="badge" style="background:#f59e0b; color:white; font-size:10px;">Internal</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p style="margin:0;">{{ comment.comment|linebreaks }}</p>
+                </div>
+            </div>
+            {% if not forloop.last %}
+            <hr style="margin:0; border:none; border-top:1px solid var(--border);">
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.form-input.error {
+    border-color: #ef4444;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.form-label.required::after {
+    content: " •";
+    color: #ef4444;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.form-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Format amount to 2 decimal places
+    var amountInput = document.querySelector('input[name="amount_in_figures"]');
+    if (amountInput && !amountInput.readOnly) {
+        amountInput.addEventListener('change', function() {
+            var amount = parseFloat(this.value);
+            if (!isNaN(amount)) {
+                this.value = amount.toFixed(2);
+            }
+        });
+    }
+
+    // Form validation
+    var form = document.getElementById('editForm');
+    form.addEventListener('submit', function(e) {
+        var isEditable = {% if voucher.status == 'draft' or voucher.status == 'rejected' %}true{% else %}false{% endif %};
+        var isBlankVoucher = {% if is_blank_voucher %}true{% else %}false{% endif %};
+        var submitButton = e.submitter;
+        var action = submitButton ? submitButton.value : 'save';
+        
+        if (isEditable) {
+            var isValid = true;
+            var firstError = null;
+            
+            // For blank vouchers, only validate when submitting
+            // For draft saves, don't validate empty fields
+            if (!isBlankVoucher || action === 'submit') {
+                // Check required fields that are editable
+                var requiredFields = form.querySelectorAll('[required]:not([readonly])');
+                requiredFields.forEach(function(field) {
+                    var value = field.value.trim();
+                    
+                    // Skip validation for blank vouchers when saving as draft
+                    if (isBlankVoucher && action === 'save' && !value) {
+                        return; // Skip this field
+                    }
+                    
+                    if (!value) {
+                        isValid = false;
+                        field.classList.add('error');
+                        if (!field.nextElementSibling || !field.nextElementSibling.classList.contains('form-error')) {
+                            var errorDiv = document.createElement('div');
+                            errorDiv.className = 'form-error';
+                            errorDiv.textContent = isBlankVoucher ? 'Please fill in this field before submitting' : 'This field is required';
+                            field.parentNode.insertBefore(errorDiv, field.nextSibling);
+                        }
+                        if (!firstError) {
+                            firstError = field;
+                        }
+                    } else {
+                        field.classList.remove('error');
+                        var errorMsg = field.nextElementSibling;
+                        if (errorMsg && errorMsg.classList.contains('form-error')) {
+                            errorMsg.remove();
+                        }
+                    }
+                });
+
+                // Check amount is positive if provided
+                if (amountInput && !amountInput.readOnly && amountInput.value) {
+                    var amount = parseFloat(amountInput.value);
+                    if (amount < 0) {
+                        isValid = false;
+                        amountInput.classList.add('error');
+                        if (!firstError) firstError = amountInput;
+                    }
+                }
+
+                // Check date is not in past if provided
+                var dateInput = form.querySelector('input[name="needed_by"]');
+                if (dateInput && !dateInput.readOnly && dateInput.value) {
+                    var neededBy = new Date(dateInput.value);
+                    var today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (neededBy < today) {
+                        isValid = false;
+                        dateInput.classList.add('error');
+                        if (!firstError) firstError = dateInput;
+                    }
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstError.focus();
+                }
+            }
+        }
+
+        // Confirm submission
+        if (submitButton && submitButton.value === 'submit') {
+            var confirmMessage = 'Are you sure you want to submit this voucher for approval? You will not be able to edit it after submission.';
+            
+            if (isBlankVoucher) {
+                confirmMessage = 'This voucher has incomplete information. Are you sure you want to submit it for approval?';
+            }
+            
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

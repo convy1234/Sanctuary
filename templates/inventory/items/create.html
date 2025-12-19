@@ -1,0 +1,451 @@
+<!-- templates/inventory/items/create.html -->
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Create New Item - Inventory{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <p class="muted" style="margin:0;">{{ organization.name }}</p>
+                <h1 style="margin:6px 0 0;">Create New Inventory Item</h1>
+            </div>
+            <div>
+                <a href="{% url 'inventory_item_list' %}" class="pill">← Back to Inventory</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="content-grid" style="grid-template-columns:2fr 1fr; gap:20px;">
+        <div class="section-card">
+            <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:24px;">
+                {% csrf_token %}
+                
+                <!-- Error Messages -->
+                {% if errors %}
+                <div style="background:#fee2e2; color:#dc2626; padding:16px; border-radius:10px; margin-bottom:20px;">
+                    <strong style="display:block; margin-bottom:8px;">Please fix the following errors:</strong>
+                    <ul style="margin:0; padding-left:20px;">
+                        {% for field, error in errors.items %}
+                        <li><strong>{{ field|title }}</strong>: {{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Basic Information -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Basic Information</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="name">Item Name *</label>
+                            <input type="text" id="name" name="name" 
+                                   value="{{ data.name|default:'' }}" 
+                                   placeholder="Enter item name" required>
+                        </div>
+                        <div>
+                            <label for="sku">SKU (Optional)</label>
+                            <input type="text" id="sku" name="sku" 
+                                   value="{{ data.sku|default:'' }}" 
+                                   placeholder="Auto-generated if empty">
+                        </div>
+                        <div>
+                            <label for="barcode">Barcode (Optional)</label>
+                            <input type="text" id="barcode" name="barcode" 
+                                   value="{{ data.barcode|default:'' }}">
+                        </div>
+                        <div>
+                            <label for="asset_tag">Asset Tag (Optional)</label>
+                            <input type="text" id="asset_tag" name="asset_tag" 
+                                   value="{{ data.asset_tag|default:'' }}">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:16px;">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="3" style="width:100%;"
+                                  placeholder="Enter item description">{{ data.description|default:'' }}</textarea>
+                    </div>
+                </div>
+                
+                <!-- Stock Information -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Stock Information</h3>
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
+                        <div>
+                            <label for="quantity">Current Quantity *</label>
+                            <input type="number" id="quantity" name="quantity" 
+                                   value="{{ data.quantity|default:0 }}" 
+                                   min="0" step="1" required>
+                        </div>
+                        <div>
+                            <label for="reorder_level">Reorder Level</label>
+                            <input type="number" id="reorder_level" name="reorder_level" 
+                                   value="{{ data.reorder_level|default:0 }}" 
+                                   min="0" step="1">
+                        </div>
+                        <div>
+                            <label for="reorder_quantity">Reorder Quantity</label>
+                            <input type="number" id="reorder_quantity" name="reorder_quantity" 
+                                   value="{{ data.reorder_quantity|default:1 }}" 
+                                   min="1" step="1">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:16px;">
+                        <label style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" name="alert_on_low" value="true" 
+                                   {% if data.alert_on_low == 'true' or data.alert_on_low == True %}checked{% endif %}>
+                            <span>Send alerts when stock is low</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Physical Attributes -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Physical Attributes</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="location">Location</label>
+                            <input type="text" id="location" name="location" 
+                                   value="{{ data.location|default:'' }}" 
+                                   placeholder="Room, Shelf, Cabinet...">
+                        </div>
+                        <div>
+                            <label for="condition">Condition</label>
+                            <select id="condition" name="condition">
+                                {% for value, display in condition_choices %}
+                                <option value="{{ value }}" 
+                                        {% if data.condition == value or not data.condition and value == 'good' %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="item_type">Item Type</label>
+                            <select id="item_type" name="item_type">
+                                {% for value, display in item_type_choices %}
+                                <option value="{{ value }}" 
+                                        {% if data.item_type == value or not data.item_type and value == 'supply' %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="image">Image (Optional)</label>
+                            <input type="file" id="image" name="image" accept="image/*">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:16px;">
+                        <label for="storage_instructions">Storage Instructions</label>
+                        <textarea id="storage_instructions" name="storage_instructions" 
+                                  rows="2" style="width:100%;"
+                                  placeholder="Special storage requirements">{{ data.storage_instructions|default:'' }}</textarea>
+                    </div>
+                </div>
+                
+                <!-- Classification -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Classification</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="category">Category</label>
+                            <select id="category" name="category">
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" 
+                                        {% if data.category == category.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="department">Department</label>
+                            <select id="department" name="department">
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" 
+                                        {% if data.department == department.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Financial Information -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Financial Information</h3>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label for="purchase_price">Purchase Price (₦)</label>
+                            <input type="number" id="purchase_price" name="purchase_price" 
+                                   value="{{ data.purchase_price|default:'' }}" 
+                                   step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label for="vendor">Vendor (Optional)</label>
+                            <select id="vendor" name="vendor">
+                                <option value="">Select Vendor</option>
+                                {% for vendor in vendors %}
+                                <option value="{{ vendor.id }}" 
+                                        {% if data.vendor == vendor.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ vendor.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="purchase_date">Purchase Date</label>
+                            <input type="date" id="purchase_date" name="purchase_date" 
+                                   value="{{ data.purchase_date|default:'' }}">
+                        </div>
+                        <div>
+                            <label for="warranty_expiry">Warranty Expiry</label>
+                            <input type="date" id="warranty_expiry" name="warranty_expiry" 
+                                   value="{{ data.warranty_expiry|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notes -->
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:16px;">Notes</h3>
+                    <textarea id="notes" name="notes" rows="4" style="width:100%;"
+                              placeholder="Additional notes about this item...">{{ data.notes|default:'' }}</textarea>
+                </div>
+                
+                <!-- Form Actions -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border);">
+                    <div>
+                        <a href="{% url 'inventory_item_list' %}" style="color:var(--muted);">Cancel</a>
+                    </div>
+                    <div>
+                        <button type="submit" style="background:var(--primary); color:white; padding:12px 24px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">
+                            Create Item
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Help Sidebar -->
+        <div class="section-card">
+            <h3 style="margin-top:0;">Tips & Guidelines</h3>
+            
+            <div style="margin-bottom:20px;">
+                <div style="font-weight:700; margin-bottom:8px; color:#dc2626;">Required Fields</div>
+                <ul style="margin:0; padding-left:20px; font-size:14px; color:var(--muted);">
+                    <li>Item Name</li>
+                    <li>Current Quantity</li>
+                </ul>
+            </div>
+            
+            <div style="margin-bottom:20px;">
+                <div style="font-weight:700; margin-bottom:8px;">Stock Management Tips</div>
+                <div style="font-size:14px; color:var(--muted);">
+                    <p style="margin:4px 0;">• Set <strong>Reorder Level</strong> to get low stock alerts</p>
+                    <p style="margin:4px 0;">• <strong>Reorder Quantity</strong> is how many to order when stock is low</p>
+                    <p style="margin:4px 0;">• Use <strong>Location</strong> field to track where items are stored</p>
+                    <p style="margin:4px 0;">• <strong>SKU</strong> will be auto-generated if left empty</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:20px;">
+                <div style="font-weight:700; margin-bottom:8px;">Image Guidelines</div>
+                <div style="font-size:14px; color:var(--muted);">
+                    <p style="margin:4px 0;">• Upload clear product photos</p>
+                    <p style="margin:4px 0;">• Recommended size: 500×500 pixels</p>
+                    <p style="margin:4px 0;">• Supported formats: JPG, PNG, WebP</p>
+                </div>
+            </div>
+            
+            <div style="border-top:1px solid var(--border); padding-top:16px;">
+                <div style="font-weight:700; margin-bottom:8px;">Quick Actions</div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <a href="{% url 'inventory_item_list' %}" class="quick-action" style="padding:12px;">
+                        📋 View All Items
+                    </a>
+                    <a href="{% url 'inventory_dashboard' %}" class="quick-action" style="padding:12px;">
+                        📊 Inventory Dashboard
+                    </a>
+                    <a href="{% url 'inventory_checkout_create' %}" class="quick-action" style="padding:12px;">
+                        📤 Create Checkout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: var(--text);
+        font-size: 14px;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="file"],
+    select,
+    textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+    
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        margin: 0;
+    }
+    
+    textarea {
+        min-height: 80px;
+        resize: vertical;
+        font-family: inherit;
+    }
+    
+    button[type="submit"] {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    
+    button[type="submit"]:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+    
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action:hover {
+        background: var(--primary-soft);
+        border-color: var(--primary);
+        transform: translateY(-1px);
+    }
+    
+    .content-grid {
+        display: grid;
+        gap: 20px;
+    }
+    
+    .section-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+    }
+    
+    .muted {
+        color: var(--muted);
+        font-size: 14px;
+    }
+    
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s ease;
+    }
+    
+    .pill:hover {
+        background: var(--primary);
+        color: white;
+    }
+</style>
+
+<script>
+// Auto-generate SKU if empty
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('name');
+    const skuInput = document.getElementById('sku');
+    
+    // Generate SKU from first 3 letters of name when name is entered
+    nameInput.addEventListener('blur', function() {
+        if (!skuInput.value.trim() && nameInput.value.trim()) {
+            const name = nameInput.value.trim().toUpperCase();
+            const prefix = name.length >= 3 ? name.substring(0, 3) : name;
+            const timestamp = Date.now().toString().slice(-4);
+            skuInput.value = `${prefix}-${timestamp}`;
+        }
+    });
+    
+    // Validate quantity on change
+    const quantityInput = document.getElementById('quantity');
+    quantityInput.addEventListener('change', function() {
+        if (parseInt(this.value) < 0) {
+            this.value = 0;
+            alert('Quantity cannot be negative');
+        }
+    });
+    
+    // Validate price on change
+    const priceInput = document.getElementById('purchase_price');
+    if (priceInput) {
+        priceInput.addEventListener('change', function() {
+            if (parseFloat(this.value) < 0) {
+                this.value = 0;
+                alert('Price cannot be negative');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

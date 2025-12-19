@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Voucher Templates - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <p class="muted" style="margin:0;">{{ organization.name }}</p>
+                <h1 style="margin:6px 0 0;">Voucher Templates</h1>
+                <p class="muted" style="margin:4px 0 0;">Manage your voucher form templates</p>
+            </div>
+            <div>
+                <a href="{% url 'voucher_template_create' %}" 
+                   style="padding:12px 20px; background:var(--primary); color:white; border-radius:8px; text-decoration:none;">
+                    + Create New Template
+                </a>
+                <a href="{% url 'voucher_create' %}" 
+                   style="padding:12px 20px; background:#f3f4f6; border-radius:8px; text-decoration:none; margin-left:8px;">
+                    Create Voucher
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="card" style="margin-bottom:14px;">
+        {% for message in messages %}
+        <div style="padding:12px; background:
+            {% if message.tags == 'success' %}#d1fae5;
+            {% elif message.tags == 'error' %}#fee2e2;
+            {% elif message.tags == 'warning' %}#fef3c7;
+            {% else %}#f3f4f6;
+            {% endif %}
+            border-radius:8px; margin-bottom:8px;">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Templates Grid -->
+    <div class="content-grid" style="gap:16px;">
+        {% for template in templates %}
+        <div class="section-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    {% if template.logo %}
+                    <img src="{{ template.logo.url }}" alt="{{ template.name }}" 
+                         style="width:48px; height:48px; object-fit:contain; border-radius:8px;">
+                    {% else %}
+                    <div style="width:48px; height:48px; background:var(--primary-soft); 
+                                border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size:24px;">📄</span>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h3 style="margin:0 0 4px;">{{ template.name }}</h3>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            {% if template.is_default %}
+                            <span class="badge" style="background:#10b981; color:white;">Default</span>
+                            {% endif %}
+                            <span class="muted" style="font-size:12px;">
+                                Created {{ template.created_at|date:"M d, Y" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <a href="{% url 'voucher_template_edit' template.id %}" 
+                       style="padding:8px 12px; background:#f3f4f6; border-radius:6px; text-decoration:none;">
+                        Edit
+                    </a>
+                    <a href="{% url 'voucher_create' %}?template={{ template.id }}" 
+                       style="padding:8px 12px; background:var(--primary); color:white; border-radius:6px; text-decoration:none;">
+                        Use
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Template Preview -->
+            <div style="background:#f9fafb; border-radius:8px; padding:16px; margin-bottom:16px;">
+                <div style="text-align:center; margin-bottom:12px;">
+                    {% if template.logo %}
+                    <img src="{{ template.logo.url }}" alt="Logo" 
+                         style="max-width:100px; max-height:60px; margin-bottom:8px;">
+                    {% endif %}
+                    <div style="font-weight:600; font-size:14px; margin-bottom:4px;">
+                        {{ template.church_name }}
+                    </div>
+                    <div style="font-size:12px; color:#6b7280; margin-bottom:8px;">
+                        {{ template.church_motto|truncatechars:50 }}
+                    </div>
+                    <div style="font-weight:700; font-size:16px; color:var(--primary); margin-bottom:4px;">
+                        {{ template.form_title }}
+                    </div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; font-size:12px;">
+                    <div>
+                        <strong>Sections:</strong>
+                        <ul style="margin:4px 0 0; padding-left:16px;">
+                            {% if template.show_urgent_items %}<li>Urgent</li>{% endif %}
+                            {% if template.show_important_items %}<li>Important</li>{% endif %}
+                            {% if template.show_permissible_items %}<li>Permissible</li>{% endif %}
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>Stats:</strong>
+                        <div style="margin-top:4px;">
+                            Used {{ template.vouchers.count }} time{{ template.vouchers.count|pluralize }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Template Details -->
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#6b7280;">
+                <div>
+                    Created by: {{ template.created_by.get_full_name|default:template.created_by.username }}
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <a href="{% url 'voucher_template_duplicate' template.id %}" 
+                       style="color:var(--primary); text-decoration:none;">
+                        Duplicate
+                    </a>
+                    <a href="{% url 'voucher_template_delete' template.id %}" 
+                       style="color:#ef4444; text-decoration:none;"
+                       onclick="return confirm('Are you sure you want to delete this template? This action cannot be undone.')">
+                        Delete
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="section-card" style="text-align:center; padding:40px 20px;">
+            <div style="font-size:48px; margin-bottom:16px;">📄</div>
+            <h3 style="margin:0 0 8px;">No templates yet</h3>
+            <p class="muted" style="margin:0 0 20px;">Create your first voucher template to get started</p>
+            <a href="{% url 'voucher_template_create' %}" 
+               style="padding:12px 24px; background:var(--primary); color:white; border-radius:8px; text-decoration:none;">
+                Create Your First Template
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
