@@ -12,6 +12,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('church/', include('church.urls')),
 
+
     path('', accounts.dashboard_view, name='dashboard'),
 
 ]

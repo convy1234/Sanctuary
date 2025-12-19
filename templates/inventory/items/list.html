@@ -1,0 +1,404 @@
+<!-- templates/inventory/items/list.html -->
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Inventory Items - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header with Actions -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <h1 style="margin:6px 0 0;">Inventory Items</h1>
+        </div>
+        <div class="actions">
+            <a href="{% url 'inventory_item_create' %}" class="pill">+ Add Item</a>
+            <a href="{% url 'inventory_dashboard' %}" class="pill" style="background:#4f46e5;">📊 Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card" style="margin-bottom:14px;">
+        <form method="get" style="display:grid; grid-template-columns:1fr auto auto auto auto; gap:12px; align-items:end;">
+            <div>
+                <label for="search">Search Items</label>
+                <input type="text" id="search" name="search" placeholder="Name, SKU, barcode..." 
+                       value="{{ search|default:'' }}">
+            </div>
+            <div>
+                <label for="category">Category</label>
+                <select id="category" name="category">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="department">Department</label>
+                <select id="department" name="department">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if department_id == dept.id|stringformat:"s" %}selected{% endif %}>
+                        {{ dept.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All Status</option>
+                    <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>In Stock</option>
+                    <option value="low_stock" {% if status_filter == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                    <option value="out_of_stock" {% if status_filter == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="submit">Filter</button>
+                <a href="{% url 'inventory_item_list' %}" style="padding:12px 16px; border:1px solid var(--border); border-radius:10px;">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Filter Indicators -->
+    {% if search or category_id or department_id or status_filter %}
+    <div class="section-card" style="margin-bottom:20px; padding:12px 16px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span class="muted">Filters:</span>
+            {% if search %}
+            <span class="badge" style="background:#dbeafe; color:#1e40af;">
+                Search: "{{ search }}"
+                <a href="?{% if category_id %}category={{ category_id }}{% endif %}{% if department_id %}&department={{ department_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" 
+                   style="margin-left:6px; color:inherit;">×</a>
+            </span>
+            {% endif %}
+            
+            {% if category_id and categories %}
+                {% for category in categories %}
+                    {% if category.id|stringformat:"s" == category_id %}
+                    <span class="badge" style="background:#d1fae5; color:#065f46;">
+                        Category: {{ category.name }}
+                        <a href="?{% if search %}search={{ search }}{% endif %}{% if department_id %}&department={{ department_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" 
+                           style="margin-left:6px; color:inherit;">×</a>
+                    </span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            
+            {% if department_id and departments %}
+                {% for dept in departments %}
+                    {% if dept.id|stringformat:"s" == department_id %}
+                    <span class="badge" style="background:#fef3c7; color:#92400e;">
+                        Department: {{ dept.name }}
+                        <a href="?{% if search %}search={{ search }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" 
+                           style="margin-left:6px; color:inherit;">×</a>
+                    </span>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            
+            {% if status_filter %}
+            <span class="badge" style="background:#e0e7ff; color:#3730a3;">
+                Status: {{ status_filter|title }}
+                <a href="?{% if search %}search={{ search }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if department_id %}&department={{ department_id }}{% endif %}" 
+                   style="margin-left:6px; color:inherit;">×</a>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Items Table -->
+    <div class="section-card">
+        {% if items %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left; padding:12px; font-weight:700;">Item</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Stock</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Value</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Location</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Department</th>
+                            <th style="text-align:left; padding:12px; font-weight:700;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div class="avatar" style="width:36px; height:36px;">
+                                        {% if item.image %}
+                                            <img src="{{ item.image.url }}" alt="{{ item.name }}" 
+                                                 style="width:100%; height:100%; border-radius:8px; object-fit:cover;">
+                                        {% else %}
+                                            <div style="width:100%; height:100%; border-radius:8px; background:#e0e7ff; display:flex; align-items:center; justify-content:center; font-size:14px;">
+                                                {{ item.name|slice:":2"|upper }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <strong>{{ item.name }}</strong>
+                                        <div class="muted">
+                                            {{ item.sku|default:"No SKU" }}
+                                            {% if item.barcode %}| {{ item.barcode }}{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:12px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <strong>{{ item.quantity }}</strong>
+                                    {% if item.is_low_stock %}
+                                    <span class="badge" style="background:#fef3c7; color:#92400e; font-size:11px;">
+                                        Low Stock
+                                    </span>
+                                    {% elif item.quantity <= 0 %}
+                                    <span class="badge" style="background:#fee2e2; color:#dc2626; font-size:11px;">
+                                        Out of Stock
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if item.reorder_level > 0 %}
+                                <div class="muted" style="font-size:12px;">
+                                    Reorder at {{ item.reorder_level }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td style="padding:12px;">
+                                {% if item.purchase_price %}
+                                    <strong>₦{{ item.total_value|floatformat:2|intcomma }}</strong>
+                                    <div class="muted" style="font-size:12px;">
+                                        ₦{{ item.purchase_price|floatformat:2 }} each
+                                    </div>
+                                {% else %}
+                                    <span class="muted">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:12px;">
+                                {% if item.location %}
+                                    {{ item.location }}
+                                {% else %}
+                                    <span class="muted">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:12px;">
+                                {% if item.department %}
+                                    <span class="badge" style="background:#f3f4f6;">
+                                        {{ item.department.name }}
+                                    </span>
+                                {% else %}
+                                    <span class="muted">None</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:12px;">
+                                <div style="display:flex; gap:6px;">
+                                    <a href="{% url 'inventory_item_detail' item.id %}" 
+                                       style="padding:6px 10px; background:var(--primary-soft); border-radius:6px; font-size:12px;">View</a>
+                                    <a href="{% url 'inventory_item_update' item.id %}" 
+                                       style="padding:6px 10px; background:#e0e7ff; border-radius:6px; font-size:12px;">Edit</a>
+                                    <a href="{% url 'inventory_checkout_create' %}?item={{ item.id }}" 
+                                       style="padding:6px 10px; background:#d1fae5; border-radius:6px; font-size:12px;" 
+                                       {% if item.quantity <= 0 %}disabled style="opacity:0.5; pointer-events:none;"{% endif %}>
+                                        Checkout
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if items.has_other_pages %}
+            <div style="display:flex; justify-content:center; margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+                <div style="display:flex; gap:8px;">
+                    {% if items.has_previous %}
+                    <a href="?page={{ items.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if department_id %}&department={{ department_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" 
+                       class="pill">← Previous</a>
+                    {% endif %}
+                    
+                    <span style="padding:8px 16px; background:var(--primary-soft); border-radius:8px;">
+                        Page {{ items.number }} of {{ items.paginator.num_pages }}
+                    </span>
+                    
+                    {% if items.has_next %}
+                    <a href="?page={{ items.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if department_id %}&department={{ department_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" 
+                       class="pill">Next →</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <div style="text-align:center; padding:40px 20px;">
+                <div style="font-size:48px; margin-bottom:16px;">📦</div>
+                <h3 style="margin:0 0 8px;">No inventory items found</h3>
+                <p class="muted" style="margin-bottom:20px;">
+                    {% if search or category_id or department_id or status_filter %}
+                        No items match your filters
+                    {% else %}
+                        Start by adding your first inventory item
+                    {% endif %}
+                </p>
+                <a href="{% url 'inventory_item_create' %}" class="pill">+ Add First Item</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Summary Cards - SIMPLIFIED VERSION -->
+    <div class="content-grid" style="margin-top:20px; grid-template-columns:repeat(4, 1fr);">
+        <div class="section-card">
+            <h4 style="margin:0 0 8px;">Stock Status</h4>
+            {% with in_stock_count=0 low_stock_count=0 out_of_stock_count=0 %}
+                {% for item in items %}
+                    {% if item.quantity <= 0 %}
+                        {% widthratio out_of_stock_count 1 1 as out_of_stock_count %}
+                    {% elif item.is_low_stock %}
+                        {% widthratio low_stock_count 1 1 as low_stock_count %}
+                    {% else %}
+                        {% widthratio in_stock_count 1 1 as in_stock_count %}
+                    {% endif %}
+                {% endfor %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>In Stock</span>
+                        <strong>{{ items|length }}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Low Stock</span>
+                        <strong style="color:#92400e;">{{ low_stock_count|default:0 }}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Out of Stock</span>
+                        <strong style="color:#dc2626;">{{ out_of_stock_count|default:0 }}</strong>
+                    </div>
+                </div>
+            {% endwith %}
+        </div>
+
+        <div class="section-card">
+            <h4 style="margin:0 0 8px;">Total Value</h4>
+            <div style="font-size:24px; font-weight:700; color:var(--primary-dark);">
+                ₦{% with total=0 %}{% for item in items %}{% if item.purchase_price %}{% widthratio total|add:item.total_value 1 1 as total %}{% endif %}{% endfor %}{{ total|floatformat:2|intcomma }}{% endwith %}
+            </div>
+            <div class="muted" style="font-size:12px; margin-top:8px;">Across {{ items|length }} items</div>
+        </div>
+
+        <div class="section-card">
+            <h4 style="margin:0 0 8px;">Quick Actions</h4>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <a href="{% url 'inventory_item_create' %}" class="quick-action" style="padding:10px;">
+                    <span>➕</span>
+                    <div>
+                        <strong>Add Item</strong>
+                        <div class="muted" style="font-size:12px;">Create new inventory</div>
+                    </div>
+                </a>
+                <a href="{% url 'inventory_checkout_create' %}" class="quick-action" style="padding:10px;">
+                    <span>📤</span>
+                    <div>
+                        <strong>Checkout</strong>
+                        <div class="muted" style="font-size:12px;">Issue items</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h4 style="margin:0 0 8px;">Summary</h4>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Total Items</span>
+                    <strong>{{ items|length }}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Categories</span>
+                    <strong>{{ categories|length }}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Departments</span>
+                    <strong>{{ departments|length }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .badge {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action:hover {
+        background: var(--primary-soft);
+        border-color: var(--primary);
+    }
+    
+    .content-grid {
+        display: grid;
+        gap: 20px;
+    }
+    
+    .section-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+    }
+    
+    .card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+    }
+    
+    .muted {
+        color: #6b7280;
+        font-size: 14px;
+    }
+    
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        background: #e0e7ff;
+        color: #4f46e5;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s ease;
+    }
+    
+    .pill:hover {
+        background: #4f46e5;
+        color: white;
+    }
+</style>
+{% endblock %}

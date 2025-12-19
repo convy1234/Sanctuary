@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+{% block title %}Voucher {{ voucher.voucher_number }} - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header with Actions -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <p class="muted" style="margin:0;">{{ organization.name }}</p>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:6px;">
+                <h1 style="margin:0;">Voucher #{{ voucher.voucher_number }}</h1>
+                {% if voucher.status == 'draft' %}
+                <span class="badge" style="background:#f3f4f6; color:#374151;">Draft</span>
+                {% elif voucher.status == 'submitted' %}
+                <span class="badge" style="background:#fef3c7; color:#92400e;">Submitted</span>
+                {% elif voucher.status == 'approved' %}
+                <span class="badge" style="background:#d1fae5; color:#065f46;">Approved</span>
+                {% elif voucher.status == 'rejected' %}
+                <span class="badge" style="background:#fee2e2; color:#991b1b;">Rejected</span>
+                {% elif voucher.status == 'paid' %}
+                <span class="badge" style="background:#dbeafe; color:#1e40af;">Paid</span>
+                {% endif %}
+                {% if voucher.template %}
+                <span class="badge" style="background:#f3e8ff; color:#7c3aed;">{{ voucher.template.name }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="actions">
+<a href="{% url 'voucher_pdf' voucher.id %}" target="_blank" class="btn btn-primary">
+    📄 Generate PDF
+</a>
+
+<!-- Or if you want a direct download button -->
+<a href="{% url 'voucher_download' voucher.id %}" target="_blank" class="btn btn-success">
+    ⬇️ Download PDF
+</a>
+            <a href="{% url 'voucher_list' %}" class="pill">← Back to List</a>
+        </div>
+    </div>
+
+    <!-- Status Alert -->
+    {% if voucher.status == 'draft' %}
+    <div class="card" style="margin-bottom:14px; background:#f3f4f6; border-left:4px solid #9ca3af;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong>DRAFT</strong>
+                <p class="muted" style="margin:4px 0 0;">This voucher is still being prepared.</p>
+            </div>
+            {% if voucher.requested_by == user %}
+            <a href="{% url 'voucher_edit' voucher.id %}" class="pill" style="background:#374151; color:white;">✏️ Continue Editing</a>
+            {% endif %}
+        </div>
+    </div>
+    {% elif voucher.status == 'submitted' %}
+    <div class="card" style="margin-bottom:14px; background:#fef3c7; border-left:4px solid #f59e0b;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong>SUBMITTED</strong>
+                <p class="muted" style="margin:4px 0 0;">Waiting for approval.</p>
+            </div>
+            {% if can_approve %}
+            <a href="#approveModal" onclick="document.getElementById('approveModal').style.display='block'" 
+               class="pill" style="background:#92400e; color:white;">✅ Review & Approve</a>
+            {% endif %}
+        </div>
+    </div>
+    {% elif voucher.status == 'approved' %}
+    <div class="card" style="margin-bottom:14px; background:#d1fae5; border-left:4px solid #10b981;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong>APPROVED</strong>
+                <p class="muted" style="margin:4px 0 0;">Ready for payment.</p>
+            </div>
+            {% if can_pay %}
+            <a href="#payModal" onclick="document.getElementById('payModal').style.display='block'" 
+               class="pill" style="background:#065f46; color:white;">💳 Mark as Paid</a>
+            {% endif %}
+        </div>
+    </div>
+    {% elif voucher.status == 'paid' %}
+    <div class="card" style="margin-bottom:14px; background:#dbeafe; border-left:4px solid #3b82f6;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong>PAID</strong>
+                <p class="muted" style="margin:4px 0 0;">Payment has been made.</p>
+            </div>
+        </div>
+    </div>
+    {% elif voucher.status == 'rejected' %}
+    <div class="card" style="margin-bottom:14px; background:#fee2e2; border-left:4px solid #ef4444;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong>REJECTED</strong>
+                <p class="muted" style="margin:4px 0 0;">This voucher has been rejected.</p>
+                {% if voucher.finance_remarks %}
+                <p style="margin:4px 0 0;"><strong>Reason:</strong> {{ voucher.finance_remarks }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if voucher.is_overdue %}
+    <div class="card" style="margin-bottom:14px; background:#fee2e2; border-left:4px solid #dc2626;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:20px;">⚠️</span>
+            <div>
+                <strong>OVERDUE</strong>
+                <p class="muted" style="margin:4px 0 0;">Needed by date has passed!</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="content-grid">
+        <!-- Left Column - Voucher Details -->
+        <div class="section-card">
+            <!-- Template Header -->
+            <div style="text-align:center; margin-bottom:24px; padding:16px; background:var(--primary-soft); border-radius:8px;">
+                {% if voucher.template and voucher.template.logo %}
+                <img src="{{ voucher.template.logo.url }}" alt="{{ voucher.template.church_name }}" 
+                     style="max-width: 150px; max-height: 80px; margin-bottom: 12px;">
+                {% endif %}
+                <h3 style="margin:0 0 8px;">{{ voucher.template.church_name|default:"Layers Of Truth" }}</h3>
+                {% if voucher.template and voucher.template.church_motto %}
+                <p class="muted" style="margin:0 0 8px;">{{ voucher.template.church_motto }}</p>
+                {% endif %}
+                <h4 style="margin:0 0 8px; color:var(--primary);">{{ voucher.template.form_title|default:"Funds Requisition Form" }}</h4>
+                {% if voucher.template and voucher.template.description %}
+                <p style="margin:0 0 4px; font-size:13px;">
+                    {{ voucher.template.description }}
+                </p>
+                {% endif %}
+                {% if voucher.template and voucher.template.warning_text %}
+                <p style="margin:0; font-size:13px; font-weight:700; color:#dc2626;">
+                    {{ voucher.template.warning_text }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Form Content -->
+            <div class="content-grid" style="gap:20px;">
+                <!-- Left Column -->
+                <div>
+                    <!-- Basic Info -->
+                    <div class="form-group">
+                        <label class="form-label">Today's Date</label>
+                        <div class="form-value">{{ voucher.date_prepared|date:"d / m / Y" }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Your Name & Department</label>
+                        <div class="form-value">{{ voucher.requester_name_department }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Reason(s) for purchasing the items / services</label>
+                        <div class="form-value" style="background:#f9fafb; padding:16px; border-radius:8px;">
+                            {{ voucher.purpose|linebreaks }}
+                        </div>
+                    </div>
+
+                    <!-- Items Section -->
+                    <div class="form-group">
+                        <label class="form-label">Items by Priority</label>
+                        
+                        {% if voucher.template and voucher.template.show_urgent_items %}
+                        <div style="margin-bottom:12px;">
+                            <div class="badge" style="background:#dc2626; color:white; margin-bottom:8px;">URGENT</div>
+                            {% if voucher.urgent_items %}
+                            <div class="form-value" style="background:#fee2e2; padding:12px; border-radius:6px;">
+                                {{ voucher.urgent_items|linebreaks }}
+                            </div>
+                            {% else %}
+                            <div class="form-value" style="background:#f9fafb; padding:12px; border-radius:6px; color:#9ca3af; font-style:italic;">
+                                No urgent items listed
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if voucher.template and voucher.template.show_important_items %}
+                        <div style="margin-bottom:12px;">
+                            <div class="badge" style="background:#f59e0b; color:white; margin-bottom:8px;">IMPORTANT</div>
+                            {% if voucher.important_items %}
+                            <div class="form-value" style="background:#fef3c7; padding:12px; border-radius:6px;">
+                                {{ voucher.important_items|linebreaks }}
+                            </div>
+                            {% else %}
+                            <div class="form-value" style="background:#f9fafb; padding:12px; border-radius:6px; color:#9ca3af; font-style:italic;">
+                                No important items listed
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if voucher.template and voucher.template.show_permissible_items %}
+                        <div>
+                            <div class="badge" style="background:#10b981; color:white; margin-bottom:8px;">PERMISSIBLE</div>
+                            {% if voucher.permissible_items %}
+                            <div class="form-value" style="background:#d1fae5; padding:12px; border-radius:6px;">
+                                {{ voucher.permissible_items|linebreaks }}
+                            </div>
+                            {% else %}
+                            <div class="form-value" style="background:#f9fafb; padding:12px; border-radius:6px; color:#9ca3af; font-style:italic;">
+                                No permissible items listed
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <!-- Financial Info -->
+                    <div class="form-group">
+                        <label class="form-label">Total amount requested in words</label>
+                        <div class="form-value" style="background:#f9fafb; padding:12px; border-radius:6px;">
+                            {{ voucher.amount_in_words }}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Total amount requested in figures</label>
+                        <div class="form-value" style="font-size:24px; font-weight:700; color:var(--primary);">
+                            {% if voucher.currency == 'NGN' %}₦{% elif voucher.currency == 'USD' %}${% elif voucher.currency == 'GBP' %}£{% elif voucher.currency == 'EUR' %}€{% endif %}
+                            {{ voucher.amount_in_figures|floatformat:2 }}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Funds are payable to</label>
+                        <div class="form-value">{{ voucher.payable_to }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phone Number of Payee</label>
+                        <div class="form-value">{{ voucher.payee_phone }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">When is the requested fund needed</label>
+                        <div class="form-value">{{ voucher.needed_by|date:"d-m-Y" }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Preferred mode of payment</label>
+                        <div class="form-value">{{ voucher.get_payment_method_display }}</div>
+                    </div>
+
+                    <!-- Commitments -->
+                    <div class="form-group">
+                        <label class="form-label">Commitments</label>
+                        <div class="form-value" style="background:#f9fafb; padding:12px; border-radius:6px; font-size:14px;">
+                            <p>{{ voucher.usage_commitment }}</p>
+                            <p style="margin-top:8px;">{{ voucher.maintenance_commitment }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Signature Section -->
+                    <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:20px;">
+                        <h4 style="margin-bottom:16px;">{{ voucher.template.signature_label|default:"Requester Signature" }}</h4>
+                        
+                        <div class="content-grid" style="grid-template-columns:1fr 1fr; gap:16px;">
+                            <div class="form-group">
+                                <label class="form-label">{{ voucher.template.signature_label|default:"Department Leader Signature" }}</label>
+                                {% if voucher.requester_signature_image %}
+                                <div class="form-value" style="text-align:center;">
+                                    <img src="{{ voucher.requester_signature_image.url }}" 
+                                         alt="Signature" 
+                                         style="max-width:200px; max-height:80px; border:1px solid #ddd; border-radius:4px;">
+                                    <div class="muted" style="font-size:12px; margin-top:4px;">Signature</div>
+                                </div>
+                                {% else %}
+                                <div class="form-value" style="border-bottom:2px dashed #9ca3af; padding-bottom:8px;">
+                                    {{ voucher.requester_signature|default:"____________________" }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">{{ voucher.template.date_label|default:"Date" }}</label>
+                                <div class="form-value" style="border-bottom:2px dashed #9ca3af; padding-bottom:8px;">
+                                    {{ voucher.requester_signed_date|date:"d-m-Y"|default:"____________________" }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top:16px;">
+                            <label class="form-label">{{ voucher.template.phone_label|default:"Phone Number" }}</label>
+                            <div class="form-value" style="border-bottom:2px dashed #9ca3af; padding-bottom:8px;">
+                                {{ voucher.requester_phone|default:"____________________" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Status & Actions -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            <!-- Status Card -->
+            <div class="section-card">
+                <h3 style="margin-top:0; margin-bottom:16px;">Voucher Status</h3>
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    <div class="list-row">
+                        <span class="muted">Status</span>
+                        <span class="badge" style="
+                            {% if voucher.status == 'draft' %}background:#f3f4f6; color:#374151;
+                            {% elif voucher.status == 'submitted' %}background:#fef3c7; color:#92400e;
+                            {% elif voucher.status == 'approved' %}background:#d1fae5; color:#065f46;
+                            {% elif voucher.status == 'rejected' %}background:#fee2e2; color:#991b1b;
+                            {% elif voucher.status == 'paid' %}background:#dbeafe; color:#1e40af;
+                            {% endif %}">
+                            {{ voucher.get_status_display }}
+                        </span>
+                    </div>
+                    
+                    {% if voucher.template %}
+                    <div class="list-row">
+                        <span class="muted">Template</span>
+                        <span>{{ voucher.template.name }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="list-row">
+                        <span class="muted">Created</span>
+                        <span>{{ voucher.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="list-row">
+                        <span class="muted">Days Open</span>
+                        <span>{{ voucher.days_open }} days</span>
+                    </div>
+                    <div class="list-row">
+                        <span class="muted">Total Items</span>
+                        <span>{{ voucher.total_items_count }}</span>
+                    </div>
+                    <div class="list-row">
+                        <span class="muted">Requested By</span>
+                        <span>{{ voucher.requested_by.get_full_name }}</span>
+                    </div>
+                    {% if voucher.approved_by %}
+                    <div class="list-row">
+                        <span class="muted">Approved By</span>
+                        <span>{{ voucher.approved_by.get_full_name }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Template Information -->
+                    {% if voucher.template %}
+                    <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+                        <h4 style="font-size:14px; margin-bottom:8px;">Template Info</h4>
+                        <div class="list-row">
+                            <span class="muted">Created</span>
+                            <span>{{ voucher.template.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="list-row">
+                            <span class="muted">Created By</span>
+                            <span>{{ voucher.template.created_by.get_full_name }}</span>
+                        </div>
+                        {% if voucher.template.is_default %}
+                        <div class="list-row">
+                            <span class="muted">Default</span>
+                            <span class="badge" style="background:#10b981; color:white;">✓</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Finance Office Card -->
+            <div class="section-card" style="background:#f0f9ff; border:2px solid #3b82f6;">
+                <div style="text-align:center; margin-bottom:16px;">
+                    <h3 style="margin:0; color:#1e40af;">{{ voucher.template.finance_section_title|default:"CHURCH OFFICE USE ONLY" }}</h3>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:700;">Funds Approved</label>
+                        <div class="form-value" style="border-bottom:2px dashed #3b82f6; padding-bottom:8px;">
+                            {% if voucher.funds_approved %}
+                            ₦{{ voucher.funds_approved|floatformat:2 }}
+                            {% else %}
+                            ____________________
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:700;">Funds Denied</label>
+                        <div class="form-value" style="border-bottom:2px dashed #3b82f6; padding-bottom:8px;">
+                            {% if voucher.funds_denied %}
+                            ₦{{ voucher.funds_denied|floatformat:2 }}
+                            {% else %}
+                            ____________________
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:700;">Remarks</label>
+                        <div class="form-value" style="border:1px solid #d1d5db; padding:12px; border-radius:6px; min-height:60px;">
+                            {{ voucher.finance_remarks|default:"________________________________________________________"|linebreaks }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:700;">Signature</label>
+                        <div class="form-value" style="border-bottom:2px dashed #3b82f6; padding-bottom:8px;">
+                            {{ voucher.finance_signature|default:"____________________" }}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:16px; padding-top:16px; border-top:1px solid #d1d5db;">
+                    <p style="margin:0; font-weight:700; color:#1e40af;">{{ voucher.template.finance_office_name|default:"Finance Office" }}</p>
+                </div>
+
+                <!-- Additional Finance Info -->
+                {% if voucher.approved_by %}
+                <div style="margin-top:16px; padding-top:16px; border-top:1px solid #d1d5db;">
+                    <div class="list-row">
+                        <span class="muted">Approved Date</span>
+                        <span>{{ voucher.approved_date|date:"M d, Y" }}</span>
+                    </div>
+                    {% if voucher.paid_amount %}
+                    <div class="list-row">
+                        <span class="muted">Paid Amount</span>
+                        <span>₦{{ voucher.paid_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="list-row">
+                        <span class="muted">Payment Date</span>
+                        <span>{{ voucher.paid_date|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="list-row">
+                        <span class="muted">Reference</span>
+                        <span>{{ voucher.payment_reference|default:"N/A" }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="section-card">
+                <h3 style="margin-top:0; margin-bottom:16px;">Quick Actions</h3>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <a href="{% url 'voucher_pdf' voucher.id %}" 
+                       style="display:block; padding:12px; background:var(--primary-soft); border-radius:8px; text-align:center;">
+                        📄 Download PDF
+                    </a>
+                    
+                    {% if voucher.status == 'draft' and voucher.requested_by == user %}
+                    <a href="{% url 'voucher_edit' voucher.id %}" 
+                       style="display:block; padding:12px; background:#e0e7ff; border-radius:8px; text-align:center;">
+                        ✏️ Edit Voucher
+                    </a>
+                    <form method="post" action="{% url 'voucher_submit' voucher.id %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" style="width:100%; padding:12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;">
+                            📤 Submit for Approval
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if voucher.status == 'submitted' and can_approve %}
+                    <button onclick="document.getElementById('approveModal').style.display='block'" 
+                            style="width:100%; padding:12px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;">
+                        ✅ Approve Voucher
+                    </button>
+                    <button onclick="document.getElementById('rejectModal').style.display='block'" 
+                            style="width:100%; padding:12px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer;">
+                        ❌ Reject Voucher
+                    </button>
+                    {% endif %}
+
+                    {% if voucher.status == 'approved' and can_pay %}
+                    <button onclick="document.getElementById('payModal').style.display='block'" 
+                            style="width:100%; padding:12px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer;">
+                        💳 Mark as Paid
+                    </button>
+                    {% endif %}
+                    
+                    <!-- View Template -->
+                    {% if voucher.template %}
+                    <a href="{% url 'voucher_template_edit' voucher.template.id %}" 
+                       style="display:block; padding:12px; background:#f3e8ff; border-radius:8px; text-align:center;">
+                        🎨 View Template
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachments Section -->
+    {% if voucher.attachments.all %}
+    <div class="section-card" style="margin-top:20px;">
+        <h3 style="margin-top:0; margin-bottom:16px;">📎 Attachments</h3>
+        <div class="content-grid" style="grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
+            {% for attachment in voucher.attachments.all %}
+            <div class="card" style="padding:12px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                    <div style="font-size:24px;">📄</div>
+                    <div>
+                        <strong style="display:block; font-size:14px;">{{ attachment.file_name|truncatechars:20 }}</strong>
+                        <span class="muted" style="font-size:12px;">{{ attachment.file_type }}</span>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="muted" style="font-size:12px;">{{ attachment.file_size|filesizeformat }}</span>
+                    <a href="{{ attachment.file.url }}" target="_blank" 
+                       style="padding:4px 8px; background:var(--primary-soft); border-radius:4px; font-size:12px;">Download</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Comments Section -->
+    <div class="section-card" style="margin-top:20px;">
+        <h3 style="margin-top:0; margin-bottom:16px;">💬 Comments & Notes</h3>
+        
+        <!-- Comments List -->
+        {% if voucher.comments.all %}
+        <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:20px;">
+            {% for comment in voucher.comments.all %}
+            <div style="display:flex; gap:12px; padding:12px; background:{% if comment.is_internal %}#f3f4f6{% else %}#f9fafb{% endif %}; border-radius:8px;">
+                <div style="width:36px; height:36px; background:var(--primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    {{ comment.author.first_name|slice:":1"|upper }}{{ comment.author.last_name|slice:":1"|upper }}
+                </div>
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong>{{ comment.author.get_full_name }}</strong>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span class="muted" style="font-size:12px;">{{ comment.created_at|timesince }} ago</span>
+                            {% if comment.is_internal %}
+                            <span class="badge" style="background:#f59e0b; color:white; font-size:10px;">Internal</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p style="margin:0;">{{ comment.comment|linebreaks }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:20px; background:#f9fafb; border-radius:8px; margin-bottom:20px;">
+            <p class="muted" style="margin:0;">No comments yet.</p>
+        </div>
+        {% endif %}
+
+        <!-- Add Comment Form -->
+        <form method="post" action="{% url 'voucher_edit' voucher.id %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Add Comment or Note</label>
+                <textarea name="comment" rows="3" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px; font-family:inherit;"
+                          placeholder="Add a comment or note about this voucher..."></textarea>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                <div>
+                    <input type="checkbox" id="is_internal" name="is_internal_comment">
+                    <label for="is_internal" style="font-size:14px; margin-left:8px;">Internal note (not visible to requester)</label>
+                </div>
+                <button type="submit" style="padding:8px 16px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer;">
+                    Add Comment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div id="approveModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0;">Approve Voucher</h3>
+            <span onclick="document.getElementById('approveModal').style.display='none'" style="font-size:24px; cursor:pointer;">×</span>
+        </div>
+        <form method="post" action="{% url 'voucher_approve' voucher.id %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Approved Amount</label>
+                <input type="number" name="approved_amount" step="0.01" value="{{ voucher.amount_in_figures|floatformat:2 }}"
+                       style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+                <div class="muted" style="font-size:12px; margin-top:4px;">Requested: ₦{{ voucher.amount_in_figures|floatformat:2 }}</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Remarks</label>
+                <textarea name="finance_remarks" rows="3" 
+                          style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;"
+                          placeholder="Add any remarks..."></textarea>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:20px;">
+                <button type="button" onclick="document.getElementById('approveModal').style.display='none'"
+                        style="flex:1; padding:12px; background:#f3f4f6; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
+                <button type="submit" style="flex:1; padding:12px; background:#10b981; color:white; border:none; border-radius:6px; cursor:pointer;">
+                    Approve Voucher
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div id="rejectModal" class="modal">
+    <div class="modal-content" style="border-top:4px solid #ef4444;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0; color:#dc2626;">Reject Voucher</h3>
+            <span onclick="document.getElementById('rejectModal').style.display='none'" style="font-size:24px; cursor:pointer;">×</span>
+        </div>
+        <form method="post" action="{% url 'voucher_edit' voucher.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <p style="margin-bottom:16px;">Are you sure you want to reject this voucher?</p>
+            <div class="form-group">
+                <label class="form-label">Reason for rejection</label>
+                <textarea name="rejection_reason" rows="3" required
+                          style="width:100%; padding:8px; border:1px solid #fca5a5; border-radius:6px;"
+                          placeholder="Please provide a reason..."></textarea>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:20px;">
+                <button type="button" onclick="document.getElementById('rejectModal').style.display='none'"
+                        style="flex:1; padding:12px; background:#f3f4f6; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
+                <button type="submit" style="flex:1; padding:12px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">
+                    Reject Voucher
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Mark as Paid Modal -->
+<div id="payModal" class="modal">
+    <div class="modal-content" style="border-top:4px solid #3b82f6;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0; color:#1e40af;">Mark as Paid</h3>
+            <span onclick="document.getElementById('payModal').style.display='none'" style="font-size:24px; cursor:pointer;">×</span>
+        </div>
+        <form method="post" action="{% url 'voucher_edit' voucher.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pay">
+            <div class="form-group">
+                <label class="form-label">Paid Amount</label>
+                <input type="number" name="paid_amount" step="0.01" value="{{ voucher.approved_amount|default:voucher.amount_in_figures|floatformat:2 }}"
+                       style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+                <div class="muted" style="font-size:12px; margin-top:4px;">
+                    Approved: ₦{{ voucher.approved_amount|default:voucher.amount_in_figures|floatformat:2 }}
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Date</label>
+                <input type="date" name="paid_date" value="{% now 'Y-m-d' %}"
+                       style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Reference / Transaction ID</label>
+                <input type="text" name="payment_reference" placeholder="e.g., OPAY-TXN-123456"
+                       style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+            </div>
+            <div style="display:flex; gap:8px; margin-top:20px;">
+                <button type="button" onclick="document.getElementById('payModal').style.display='none'"
+                        style="flex:1; padding:12px; background:#f3f4f6; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
+                <button type="submit" style="flex:1; padding:12px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer;">
+                    Mark as Paid
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.form-value {
+    padding: 8px 0;
+    min-height: 24px;
+}
+
+.list-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.list-row:last-child {
+    border-bottom: none;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+</style>
+
+<script>
+// Close modals when clicking outside
+window.onclick = function(event) {
+    var modals = document.getElementsByClassName('modal');
+    for (var i = 0; i < modals.length; i++) {
+        if (event.target == modals[i]) {
+            modals[i].style.display = 'none';
+        }
+    }
+}
+
+// Confirm rejection
+document.querySelector('#rejectModal form').addEventListener('submit', function(e) {
+    var reason = this.querySelector('textarea[name="rejection_reason"]').value.trim();
+    if (!reason) {
+        e.preventDefault();
+        alert('Please provide a reason for rejection.');
+        return false;
+    }
+    if (!confirm('Are you sure you want to reject this voucher? This action cannot be undone.')) {
+        e.preventDefault();
+        return false;
+    }
+});
+</script>
+{% endblock %}

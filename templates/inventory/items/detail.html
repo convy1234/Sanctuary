@@ -1,0 +1,383 @@
+<!-- templates/inventory/items/detail.html -->
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ item.name }} - Inventory{% endblock %}
+
+{% block content %}
+<div class="main">
+    <!-- Header -->
+    <div class="section-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:16px;">
+            {% if item.image %}
+            <div style="width:60px; height:60px; border-radius:12px; overflow:hidden;">
+                <img src="{{ item.image.url }}" alt="{{ item.name }}" 
+                     style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            {% endif %}
+            <div>
+                <p class="muted" style="margin:0;">{{ item.category.name|default:"Uncategorized" }}</p>
+                <h1 style="margin:6px 0 0;">{{ item.name }}</h1>
+            </div>
+        </div>
+        <div class="actions">
+            <a href="{% url 'inventory_item_update' item.id %}" class="pill">✏️ Edit</a>
+            <a href="{% url 'inventory_checkout_create' %}?item={{ item.id }}" 
+               class="pill" style="background:#4f46e5;"
+               {% if item.quantity <= 0 %}disabled style="opacity:0.5; pointer-events:none;"{% endif %}>
+                📤 Checkout
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content-grid" style="grid-template-columns:2fr 1fr; gap:20px;">
+        <!-- Left Column -->
+        <div>
+            <!-- Stock Status Card -->
+            <div class="section-card" style="margin-bottom:20px;">
+                <h3 style="margin-top:0;">Stock Status</h3>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin-bottom:20px;">
+                    <div style="text-align:center;">
+                        <div class="stat-value">{{ item.quantity }}</div>
+                        <div class="stat-label">Current Stock</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div class="stat-value" style="color:#92400e;">{{ item.reorder_level }}</div>
+                        <div class="stat-label">Reorder Level</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div class="stat-value">{{ item.reorder_quantity }}</div>
+                        <div class="stat-label">Reorder Qty</div>
+                    </div>
+                </div>
+                
+                <!-- Stock Level Indicator -->
+                <div style="margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span>Stock Level</span>
+                        <span style="font-weight:700; color:
+                            {% if item.quantity <= 0 %}#dc2626;
+                            {% elif item.is_low_stock %}#92400e;
+                            {% else %}#059669;
+                            {% endif %}">
+                            {% if item.quantity <= 0 %}Out of Stock
+                            {% elif item.is_low_stock %}Low Stock
+                            {% else %}Well Stocked
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div style="height:8px; background:#f3f4f6; border-radius:4px; overflow:hidden;">
+                        <div style="height:100%; width:
+                            {% if item.reorder_level > 0 %}
+                                {% widthratio item.quantity item.reorder_level|add:item.reorder_level 100 %}%
+                            {% else %}
+                                {% widthratio item.quantity 10 100 %}%
+                            {% endif %};
+                            background:
+                                {% if item.quantity <= 0 %}#dc2626;
+                                {% elif item.is_low_stock %}#f59e0b;
+                                {% else %}#10b981;
+                                {% endif %};">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Details -->
+            <div class="section-card" style="margin-bottom:20px;">
+                <h3 style="margin-top:0;">Item Details</h3>
+                <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px;">
+                    <div>
+                        <div class="detail-label">SKU</div>
+                        <div class="detail-value">{{ item.sku|default:"Not set" }}</div>
+                    </div>
+                    <div>
+                        <div class="detail-label">Barcode</div>
+                        <div class="detail-value">{{ item.barcode|default:"Not set" }}</div>
+                    </div>
+                    <div>
+                        <div class="detail-label">Asset Tag</div>
+                        <div class="detail-value">{{ item.asset_tag|default:"Not set" }}</div>
+                    </div>
+                    <div>
+                        <div class="detail-label">Condition</div>
+                        <div class="detail-value">{{ item.get_condition_display }}</div>
+                    </div>
+                    <div>
+                        <div class="detail-label">Item Type</div>
+                        <div class="detail-value">{{ item.get_item_type_display }}</div>
+                    </div>
+                    <div>
+                        <div class="detail-label">Location</div>
+                        <div class="detail-value">{{ item.location|default:"Not set" }}</div>
+                    </div>
+                </div>
+                
+                {% if item.description %}
+                <div style="margin-top:20px;">
+                    <div class="detail-label">Description</div>
+                    <div class="detail-value" style="white-space:pre-line;">{{ item.description }}</div>
+                </div>
+                {% endif %}
+                
+                {% if item.storage_instructions %}
+                <div style="margin-top:20px;">
+                    <div class="detail-label">Storage Instructions</div>
+                    <div class="detail-value" style="white-space:pre-line;">{{ item.storage_instructions }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="section-card">
+                <h3 style="margin-top:0;">Recent Transactions</h3>
+                {% if transactions %}
+                    <div style="max-height:300px; overflow-y:auto;">
+                        {% for transaction in transactions %}
+                        <div class="list-row">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div class="avatar" style="background:
+                                    {% if transaction.transaction_type == 'add' %}#d1fae5;
+                                    {% elif transaction.transaction_type == 'checkout' %}#fef3c7;
+                                    {% else %}#f3f4f6;
+                                    {% endif %}">
+                                    {% if transaction.transaction_type == 'add' %}⬆️
+                                    {% elif transaction.transaction_type == 'checkout' %}📤
+                                    {% else %}📊{% endif %}
+                                </div>
+                                <div>
+                                    <strong>{{ transaction.get_transaction_type_display }}</strong>
+                                    <div class="muted">{{ transaction.performed_by.get_full_name|default:"System" }}</div>
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div><strong>{{ transaction.quantity }}</strong> units</div>
+                                <div class="muted" style="font-size:12px;">
+                                    {{ transaction.created_at|date:"M d, Y H:i" }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align:center; padding:30px 20px;">
+                        <div style="font-size:32px; margin-bottom:12px;">📊</div>
+                        <p class="muted">No transaction history</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div>
+            <!-- Financial Info -->
+            <div class="section-card" style="margin-bottom:20px;">
+                <h3 style="margin-top:0;">Financial Information</h3>
+                <div style="margin-bottom:20px;">
+                    <div class="detail-label">Purchase Price</div>
+                    <div class="detail-value" style="font-size:24px; font-weight:700;">
+                        ₦{{ item.purchase_price|floatformat:2|intcomma|default:"Not set" }}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <div class="detail-label">Total Value</div>
+                    <div class="detail-value" style="font-size:24px; font-weight:700; color:var(--primary-dark);">
+                        ₦{{ item.total_value|floatformat:2|intcomma }}
+                    </div>
+                    <div class="muted" style="font-size:12px;">
+                        {{ item.quantity }} units × ₦{{ item.purchase_price|floatformat:2|default:0 }} each
+                    </div>
+                </div>
+                
+                {% if item.purchase_date or item.warranty_expiry or item.vendor %}
+                <div style="border-top:1px solid var(--border); padding-top:20px;">
+                    {% if item.purchase_date %}
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span class="detail-label">Purchase Date</span>
+                        <span class="detail-value">{{ item.purchase_date|date:"M d, Y" }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if item.warranty_expiry %}
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span class="detail-label">Warranty Expiry</span>
+                        <span class="detail-value {% if item.warranty_expiry < today %}expired{% endif %}">
+                            {{ item.warranty_expiry|date:"M d, Y" }}
+                            {% if item.warranty_expiry < today %}
+                            <span style="color:#dc2626; font-size:12px;">(Expired)</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if item.vendor %}
+                    <div style="display:flex; justify-content:space-between;">
+                        <span class="detail-label">Vendor</span>
+                        <span class="detail-value">{{ item.vendor.name }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Department Info -->
+            <div class="section-card" style="margin-bottom:20px;">
+                <h3 style="margin-top:0;">Department Information</h3>
+                {% if item.department %}
+                    <div style="margin-bottom:16px;">
+                        <div class="detail-label">Assigned Department</div>
+                        <div class="detail-value" style="font-weight:700;">{{ item.department.name }}</div>
+                        <div class="muted">{{ item.department.code }}</div>
+                    </div>
+                    
+                    {% if item.department.leader %}
+                    <div style="border-top:1px solid var(--border); padding-top:16px;">
+                        <div class="detail-label">Department Leader</div>
+                        <div class="detail-value">{{ item.department.leader.full_name }}</div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:32px; margin-bottom:12px;">🏢</div>
+                        <p class="muted">No department assigned</p>
+                        <a href="{% url 'inventory_item_update' item.id %}" class="pill" style="margin-top:12px;">Assign Department</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Active Checkouts -->
+            <div class="section-card">
+                <h3 style="margin-top:0;">Active Checkouts</h3>
+                {% if checkouts %}
+                    <div style="max-height:250px; overflow-y:auto;">
+                        {% for checkout in checkouts %}
+                        <div class="list-row">
+                            <div>
+                                <strong>{{ checkout.member.full_name }}</strong>
+                                <div class="muted" style="font-size:12px;">
+                                    {{ checkout.department.name }}
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div><strong>{{ checkout.quantity }}</strong> units</div>
+                                <div class="muted" style="font-size:12px;">
+                                    Due {{ checkout.due_date|date:"M d" }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:32px; margin-bottom:12px;">✅</div>
+                        <p class="muted">No active checkouts</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="section-card">
+                <h3 style="margin-top:0;">Quick Actions</h3>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <a href="{% url 'inventory_checkout_create' %}?item={{ item.id }}" class="quick-action">
+                        <span style="font-size:20px;">📤</span>
+                        <div>
+                            <strong>Checkout Item</strong>
+                            <div class="muted">Issue to member</div>
+                        </div>
+                    </a>
+                    
+                    <a href="#" class="quick-action">
+                        <span style="font-size:20px;">🔄</span>
+                        <div>
+                            <strong>Adjust Stock</strong>
+                            <div class="muted">Update quantity</div>
+                        </div>
+                    </a>
+                    
+                    <a href="#" class="quick-action">
+                        <span style="font-size:20px;">📄</span>
+                        <div>
+                            <strong>Print Label</strong>
+                            <div class="muted">Generate barcode</div>
+                        </div>
+                    </a>
+                    
+                    <a href="#" class="quick-action" style="color:#dc2626;">
+                        <span style="font-size:20px;">🗑️</span>
+                        <div>
+                            <strong>Delete Item</strong>
+                            <div class="muted">Remove from inventory</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .detail-label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .detail-value {
+        font-size: 16px;
+        color: var(--text);
+    }
+    
+    .list-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .list-row:last-child {
+        border-bottom: none;
+    }
+    
+    .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action:hover {
+        background: var(--primary-soft);
+        border-color: var(--primary);
+    }
+    
+    .expired {
+        color: #dc2626 !important;
+    }
+    
+    .content-grid {
+        display: grid;
+        gap: 20px;
+    }
+</style>
+{% endblock %}
