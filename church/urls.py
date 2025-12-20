@@ -71,6 +71,18 @@ urlpatterns = [
     path('api/vouchers/notifications/<str:notification_id>/read/', views.mark_notification_read_api_view, name='api_mark_notification_read'),
     path('api/vouchers/notifications/read-all/', views.mark_all_notifications_read_api_view, name='api_mark_all_notifications_read'),
 
+
+    
+    path('api/chat/home/', views.chat_home_api_view, name='chat_home_api'),
+    path('api/chat/channels/create/', views.channel_create_api_view, name='channel_create_api'),
+    path('api/chat/channels/<uuid:channel_id>/', views.channel_detail_api_view, name='channel_detail_api'),
+    path('api/chat/channels/<uuid:channel_id>/send/', views.send_channel_message_api_view, name='send_channel_message_api'),
+    path('api/chat/dms/start/', views.start_dm_api_view, name='start_dm_api'),
+    path('api/chat/dms/<uuid:dm_id>/', views.dm_detail_api_view, name='dm_detail_api'),
+    path('api/chat/dms/<uuid:dm_id>/send/', views.send_dm_message_api_view, name='send_dm_message_api'),
+    path('api/chat/mark-read/', views.mark_messages_read_api_view, name='mark_messages_read_api'),
+    path('api/chat/messages/<uuid:message_id>/delete/', views.delete_message_api_view, name='delete_message_api'),
+
                     
         
     
@@ -98,6 +110,8 @@ urlpatterns = [
     path('api/vouchers/reports/payment-status/', views.payment_status_report_view, name='api_vouchers_payment_status_report'),
     path('api/vouchers/reports/expense-trend/', views.expense_trend_analysis_view, name='api_vouchers_expense_trend_report'),
     path('api/vouchers/reports/overdue/', views.overdue_vouchers_report_view, name='api_vouchers_overdue_report'),
+
+
 
 
     # ========== WEB VIEWS ==========
