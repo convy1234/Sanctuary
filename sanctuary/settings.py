@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
 
     # local apps
     "accounts",
@@ -116,6 +117,7 @@ REST_FRAMEWORK = {
 }
 
 WSGI_APPLICATION = 'sanctuary.wsgi.application'
+ASGI_APPLICATION = 'sanctuary.asgi.application'
 
 
 # Database
@@ -168,6 +170,13 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Channels (websockets)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 # settings.py
 ## settings.py

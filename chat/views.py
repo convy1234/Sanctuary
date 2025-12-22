@@ -8,6 +8,8 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -15,9 +17,42 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from member.models import Member
-from .models import Channel, ChannelMembership, DirectMessage, Message, ChatFile
+from .models import Channel, ChannelMembership, DirectMessage, Message, ChatFile, ChannelJoinRequest
 
 User = get_user_model()
+
+channel_layer = get_channel_layer()
+
+
+def channel_group_name(channel_id):
+    return f"chat.channel.{channel_id}"
+
+
+def dm_group_name(dm_id):
+    return f"chat.dm.{dm_id}"
+
+
+def display_name_for(user):
+    if hasattr(user, "member_profile") and user.member_profile:
+        return user.member_profile.full_name
+    return user.email or user.username
+
+
+def broadcast_message(thread_type, thread_id, msg_obj):
+    """Send a message payload to websocket subscribers."""
+    payload = {
+        "type": "message",
+        "thread_type": thread_type,
+        "thread_id": str(thread_id),
+        "message": {
+            "id": str(msg_obj.id),
+            "sender": display_name_for(msg_obj.sender),
+            "content": msg_obj.content,
+            "created_at": msg_obj.created_at.isoformat(),
+        },
+    }
+    group = channel_group_name(thread_id) if thread_type == "channel" else dm_group_name(thread_id)
+    async_to_sync(channel_layer.group_send)(group, {"type": "chat.message", "data": payload})
 
 
 
@@ -510,6 +545,70 @@ def channel_detail_api_view(request, channel_id):
     })
 
 
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def channel_join_api_view(request, channel_id):
+    """Join a channel (auto-join if public, otherwise create a join request)."""
+    user = request.user
+    organization = get_user_organization(user)
+    if not organization:
+        return Response({"success": False, "error": "No organization assigned"}, status=status.HTTP_400_BAD_REQUEST)
+
+    channel = get_object_or_404(Channel, id=channel_id, organization=organization)
+
+    if channel.is_public:
+        ChannelMembership.objects.get_or_create(channel=channel, user=user)
+        return Response({"success": True, "message": "Joined channel", "channel": str(channel.id)})
+
+    req, created_req = ChannelJoinRequest.objects.get_or_create(channel=channel, user=user)
+    if not created_req and req.status == "approved":
+        ChannelMembership.objects.get_or_create(channel=channel, user=user)
+        return Response({"success": True, "message": "Already approved"})
+    if not created_req and req.status == "pending":
+        return Response({"success": True, "message": "Already requested", "status": req.status})
+
+    req.status = "pending"
+    req.decided_at = None
+    req.decided_by = None
+    req.save()
+    return Response({"success": True, "message": "Join request sent", "status": req.status})
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def channel_leave_api_view(request, channel_id):
+    """Leave a channel."""
+    user = request.user
+    organization = get_user_organization(user)
+    if not organization:
+        return Response({"success": False, "error": "No organization assigned"}, status=status.HTTP_400_BAD_REQUEST)
+
+    channel = get_object_or_404(Channel, id=channel_id, organization=organization)
+    ChannelMembership.objects.filter(channel=channel, user=user).delete()
+    return Response({"success": True, "message": "Left channel"})
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def channel_join_approve_api_view(request, request_id):
+    """Approve a join request (channel creator/staff)."""
+    user = request.user
+    join_request = get_object_or_404(ChannelJoinRequest, id=request_id)
+
+    if not (user.is_staff or user.is_superuser or join_request.channel.created_by == user):
+        return Response({"success": False, "error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+    join_request.status = "approved"
+    join_request.decided_at = timezone.now()
+    join_request.decided_by = user
+    join_request.save()
+
+    ChannelMembership.objects.get_or_create(channel=join_request.channel, user=join_request.user)
+    return Response({"success": True, "message": "Request approved"})
+
 
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
@@ -565,9 +664,15 @@ def send_channel_message_api_view(request, channel_id):
             sender=user,
             content=content
         )
-        
+
+        # Ensure membership record exists for tracking
+        ChannelMembership.objects.get_or_create(channel=channel, user=user)
+
         # Mark as read by sender
         message.read_by.add(user)
+
+        # Broadcast to websocket listeners
+        broadcast_message("channel", channel.id, message)
         
         # Get sender info for response
         try:
@@ -946,9 +1051,10 @@ def send_dm_message_api_view(request, dm_id):
             sender=user,
             content=content
         )
-        
+
         # Mark as read by sender
         message.read_by.add(user)
+        broadcast_message("dm", dm_thread.id, message)
         
         # Get sender info with fallbacks (same logic as dm_detail_api_view)
         display_name = user.email.split('@')[0]
@@ -1150,7 +1256,6 @@ def chat_widget_summary_view(request):
 
     channels = (
         Channel.objects.filter(organization=org)
-        .filter(Q(is_public=True) | Q(memberships__user=request.user))
         .annotate(
             latest_message_time=Subquery(
                 Message.objects.filter(channel=OuterRef("pk"))
@@ -1163,6 +1268,10 @@ def chat_widget_summary_view(request):
                 .values("content")[:1]
             ),
             is_member=Count("memberships", filter=Q(memberships__user=request.user)),
+            join_status=Subquery(
+                ChannelJoinRequest.objects.filter(channel=OuterRef("pk"), user=request.user)
+                .values("status")[:1]
+            ),
         )
         .order_by("name")
         .distinct()
@@ -1178,6 +1287,7 @@ def chat_widget_summary_view(request):
             "last_message_time": ch.latest_message_time.isoformat() if ch.latest_message_time else None,
             "is_member": bool(ch.is_member),
             "is_public": ch.is_public,
+            "join_status": ch.join_status or None,
         }
         for ch in channels
     ]
@@ -1248,6 +1358,8 @@ def chat_widget_messages_view(request, thread_type, thread_id):
 
     if thread_type == "channel":
         thread = get_object_or_404(Channel, id=thread_id, organization=org)
+        if not thread.is_public and not ChannelMembership.objects.filter(channel=thread, user=request.user).exists():
+            return JsonResponse({"error": "Not a member of this channel"}, status=403)
         qs = Message.objects.filter(channel=thread).select_related("sender").order_by("-created_at")[:40]
         thread_name = thread.name
     elif thread_type == "dm":
@@ -1297,9 +1409,11 @@ def chat_widget_send_view(request):
     if thread_type == "channel":
         channel = get_object_or_404(Channel, id=thread_id, organization=org)
         msg = Message.objects.create(channel=channel, sender=request.user, content=content)
+        broadcast_message("channel", channel.id, msg)
     elif thread_type == "dm":
         dm = get_object_or_404(DirectMessage, id=thread_id, organization=org, participants=request.user)
         msg = Message.objects.create(direct_message=dm, sender=request.user, content=content)
+        broadcast_message("dm", dm.id, msg)
     else:
         return JsonResponse({"error": "Invalid thread type"}, status=400)
 
@@ -1383,3 +1497,31 @@ def chat_widget_create_channel_view(request):
             "display_name": channel.name.replace("-", " ").title(),
         }
     )
+
+
+@login_required
+@require_POST
+def chat_widget_join_channel_view(request):
+    """Join or request to join a channel from the dashboard chat page."""
+    org = _get_org(request.user)
+    if not org:
+        return JsonResponse({"error": "No organization assigned"}, status=403)
+
+    channel_id = request.POST.get("channel_id")
+    channel = get_object_or_404(Channel, id=channel_id, organization=org)
+
+    if channel.is_public:
+        ChannelMembership.objects.get_or_create(channel=channel, user=request.user)
+        return JsonResponse({"joined": True, "status": "joined"})
+
+    req, created = ChannelJoinRequest.objects.get_or_create(channel=channel, user=request.user)
+    if not created and req.status == "approved":
+        ChannelMembership.objects.get_or_create(channel=channel, user=request.user)
+        return JsonResponse({"joined": True, "status": "approved"})
+
+    req.status = "pending"
+    req.decided_at = None
+    req.decided_by = None
+    req.save()
+    ChannelMembership.objects.filter(channel=channel, user=request.user).delete()
+    return JsonResponse({"joined": False, "status": "pending"})

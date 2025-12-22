@@ -1,279 +1,343 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card" style="padding: 24px;">
-    <div class="d-flex" style="justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;">
-        <div>
-            <h1 style="margin: 0;">Chat</h1>
-            <p style="margin: 4px 0 0; color: #64748b;">Connect with everyone in your church organization.</p>
-        </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <span class="pill" style="background:#e0f2fe; color:#0ea5e9;">Live</span>
-            <span class="pill" style="background:#eef2ff; color:#6366f1;">Session-auth</span>
-        </div>
+<style>
+:root {
+  --chat-primary: #0f4c81;
+  --chat-primary-soft: #e6f0fa;
+  --chat-bg: #f8fafc;
+  --chat-border: #e2e8f0;
+  --chat-muted: #64748b;
+  --chat-text: #0f172a;
+}
+
+/* ====== CONTAINERS ====== */
+.chat-pane {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid var(--chat-border);
+  box-shadow: 0 6px 24px rgba(15, 76, 129, 0.05);
+}
+
+/* ====== LIST ====== */
+.chat-list-row {
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background .15s ease;
+}
+.chat-list-row:hover {
+  background: #f1f5f9;
+}
+.chat-list-row.active {
+  background: var(--chat-primary-soft);
+  font-weight: 700;
+}
+
+/* ====== THREAD HEADER ====== */
+#chatThreadHeader {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--chat-border);
+}
+#chatThreadHeader small {
+  color: var(--chat-muted);
+  font-weight: 500;
+}
+
+/* ====== MESSAGES ====== */
+#chatThreadBody {
+  padding: 16px;
+  background: linear-gradient(#f8fafc, #f1f5f9);
+  overflow-y: auto;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin: 10px 0;
+  box-shadow: 0 2px 10px rgba(15, 76, 129, 0.06);
+  animation: fadeUp .15s ease;
+}
+.chat-bubble.me {
+  background: var(--chat-primary);
+  color: #fff;
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble.other {
+  background: #fff;
+  color: var(--chat-text);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-meta {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-bottom: 4px;
+}
+
+/* ====== INPUT ====== */
+.chat-input-wrap {
+  padding: 12px 14px;
+  border-top: 1px solid var(--chat-border);
+  background: #fff;
+  display: flex;
+  gap: 10px;
+}
+#chatMessageInput {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--chat-border);
+  background: #f8fafc;
+}
+#chatMessageInput:focus {
+  outline: none;
+  border-color: var(--chat-primary);
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, .15);
+}
+#chatSendButton {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--chat-primary);
+  color: #fff;
+  font-weight: 600;
+}
+#chatSendButton:disabled {
+  opacity: .5;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="card" style="padding:24px;">
+  <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-3">
+    <div>
+      <h1 style="margin:0;">Chat</h1>
+      <p style="margin:4px 0 0;color:#64748b;">Connect with everyone in your church organization.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <span class="pill" style="background:#e0f2fe;color:#0ea5e9;">Live</span>
+      <span class="pill" style="background:#eef2ff;color:#6366f1;">Session-auth</span>
+    </div>
+  </div>
+
+  <div class="chat-page" style="display:grid;grid-template-columns:320px 1fr;gap:16px;margin-top:18px;min-height:520px;">
+    
+    <!-- LEFT -->
+    <div class="chat-pane d-flex flex-column overflow-hidden">
+      <div style="padding:12px;border-bottom:1px solid var(--chat-border);background:#f8fafc;">
+        <input id="chatSearch" type="search" placeholder="Search channels or people"
+               style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--chat-border);">
+      </div>
+
+      <div id="chatList" style="flex:1;overflow-y:auto;">
+        <div style="padding:10px 14px;font-size:12px;color:#94a3b8;text-transform:uppercase;">Channels</div>
+        <div id="chatChannelsList"></div>
+
+        <div style="padding:10px 14px;font-size:12px;color:#94a3b8;text-transform:uppercase;">Direct</div>
+        <div id="chatDMList"></div>
+
+        <div style="padding:10px 14px;font-size:12px;color:#94a3b8;text-transform:uppercase;">People</div>
+        <div id="chatPeopleList"></div>
+      </div>
     </div>
 
-    <div class="chat-page" style="display: grid; grid-template-columns: 320px 1fr; gap: 16px; margin-top: 18px; min-height: 520px;">
-        <div class="chat-pane" style="border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;">
-            <div style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display:flex; gap:8px; align-items:center;">
-                <input id="chatSearch" type="search" placeholder="Search channels or people" style="flex:1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; background:#fff;">
-                <button id="chatRefresh" class="pill" style="padding:8px 12px;">Refresh</button>
-            </div>
-            <div id="chatList" style="flex:1; overflow-y:auto; padding: 4px 0;">
-                <div style="padding: 6px 14px; text-transform: uppercase; font-size: 12px; color:#94a3b8; display:flex; justify-content:space-between; align-items:center;">
-                    <span>Channels</span>
-                    <button id="chatCreateChannel" class="pill" style="padding:4px 8px;">+ Channel</button>
-                </div>
-                <div id="chatChannelsList"></div>
-                <div style="padding: 10px 14px 4px; text-transform: uppercase; font-size: 12px; color:#94a3b8;">Direct</div>
-                <div id="chatDMList"></div>
-                <div style="padding: 10px 14px 4px; text-transform: uppercase; font-size: 12px; color:#94a3b8;">People</div>
-                <div id="chatPeopleList"></div>
-            </div>
-        </div>
+    <!-- RIGHT -->
+    <div class="chat-pane d-grid" style="grid-template-rows:auto 1fr auto;">
+      <div id="chatThreadHeader">
+        <div>Select a conversation</div>
+        <small>Choose a channel or direct message</small>
+      </div>
 
-        <div class="chat-pane" style="border: 1px solid #e2e8f0; border-radius: 14px; display: grid; grid-template-rows: auto 1fr auto; min-height: 520px;">
-            <div id="chatThreadHeader" style="padding: 14px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 700;">Select a conversation</div>
-            <div id="chatThreadBody" style="padding: 14px 16px; overflow-y: auto; background:#f8fafc;">
-                <p style="color:#94a3b8;">Choose a channel or start a direct chat to begin.</p>
-            </div>
-            <div style="padding: 12px 14px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; background:#fff;">
-                <input id="chatMessageInput" type="text" placeholder="Type a message..." style="flex:1; padding: 10px 12px; border:1px solid #cbd5e1; border-radius: 10px;">
-                <button id="chatSendButton" class="pill" style="padding: 10px 14px;" disabled>Send</button>
-            </div>
-        </div>
+      <div id="chatThreadBody">
+        <p style="color:#94a3b8;">No conversation selected.</p>
+      </div>
+
+      <div class="chat-input-wrap">
+        <input id="chatMessageInput" placeholder="Type a message…" disabled>
+        <button id="chatSendButton" disabled>Send</button>
+      </div>
     </div>
+  </div>
 </div>
 
 <script>
-(function() {
-    const summaryUrl = "/chat/widget/summary/";
-    const messagesUrl = (type, id) => `/chat/widget/${type}/${id}/messages/`;
-    const sendUrl = "/chat/widget/send/";
-    const startDmUrl = "/chat/widget/dm/start/";
+(function(){
+const summaryUrl="/chat/widget/summary/";
+const messagesUrl=(t,i)=>`/chat/widget/${t}/${i}/messages/`;
+const sendUrl="/chat/widget/send/";
+const startDmUrl="/chat/widget/dm/start/";
+const joinUrl="/chat/widget/channel/join/";
+const wsBase=`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws/chat`;
 
-    const channelsEl = document.getElementById("chatChannelsList");
-    const dmsEl = document.getElementById("chatDMList");
-    const peopleEl = document.getElementById("chatPeopleList");
-    const searchEl = document.getElementById("chatSearch");
-    const refreshBtn = document.getElementById("chatRefresh");
-    const createChannelBtn = document.getElementById("chatCreateChannel");
-    const headerEl = document.getElementById("chatThreadHeader");
-    const bodyEl = document.getElementById("chatThreadBody");
-    const messageInput = document.getElementById("chatMessageInput");
-    const sendBtn = document.getElementById("chatSendButton");
+const channelsEl=document.getElementById("chatChannelsList");
+const dmsEl=document.getElementById("chatDMList");
+const peopleEl=document.getElementById("chatPeopleList");
+const searchEl=document.getElementById("chatSearch");
+const headerEl=document.getElementById("chatThreadHeader");
+const bodyEl=document.getElementById("chatThreadBody");
+const input=document.getElementById("chatMessageInput");
+const sendBtn=document.getElementById("chatSendButton");
 
-    let summaryCache = { channels: [], dms: [], members: [] };
-    let activeThread = null;
-    let pollHandle = null;
+let active=null;
+let socket=null;
+let pollHandle=null;
 
-    function csrfToken() {
-        const m = document.cookie.match(/csrftoken=([^;]+)/);
-        return m ? decodeURIComponent(m[1]) : "";
+function csrf(){const m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:"";}
+
+function renderEmpty(target,text){target.innerHTML=`<div style='padding:10px 14px;color:#94a3b8;'>${text}</div>`;}
+
+function renderList(items,target,type){
+  target.innerHTML="";
+  if(!items.length){renderEmpty(target,"Nothing here");return;}
+  items.forEach(i=>{
+    const d=document.createElement("div");
+    d.className="chat-list-row";
+    d.textContent=i.display_name||i.name;
+    if(type==="channel" && !i.is_member){
+      const badge=document.createElement("span");
+      badge.className="pill";
+      badge.style.background="#eef2ff";
+      badge.style.color="#4f46e5";
+      badge.textContent=i.join_status==="pending"?"Pending":"Join";
+      badge.style.marginLeft="auto";
+      d.appendChild(badge);
     }
+    d.onclick=()=>type==="person"?startDM(i):handleChannelOrThread(type,i);
+    target.appendChild(d);
+  });
+}
 
-    function renderEmpty(targetEl, text) {
-        const wrap = document.createElement("div");
-        wrap.style.padding = "8px 14px";
-        wrap.style.color = "#94a3b8";
-        wrap.textContent = text;
-        targetEl.appendChild(wrap);
+function load(){
+  fetch(summaryUrl,{credentials:"include"}).then(r=>r.json()).then(d=>{
+    const q=(searchEl.value||"").toLowerCase();
+    const filterFn=x=>(x.name||"").toLowerCase().includes(q)||(x.display_name||"").toLowerCase().includes(q);
+    renderList((d.channels||[]).filter(filterFn),channelsEl,"channel");
+    renderList((d.dms||[]).filter(filterFn),dmsEl,"dm");
+    renderList((d.members||[]).filter(m=>(m.name||"").toLowerCase().includes(q)),peopleEl,"person");
+  }).catch(()=>renderEmpty(channelsEl,"Unable to load chat data."));
+}
+
+function handleChannelOrThread(type,item){
+  if(type==="channel" && !item.is_member){joinChannel(item);return;}
+  open(type,item.id,item.display_name||item.name);
+}
+
+function joinChannel(item){
+  const form=new URLSearchParams();
+  form.append("channel_id",item.id);
+  fetch(joinUrl,{
+    method:"POST",
+    headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+    body:form.toString(),
+    credentials:"include"
+  }).then(r=>r.json()).then(resp=>{
+    load();
+    if(resp.joined||resp.status==="joined"||resp.status==="approved"){
+      open("channel",item.id,item.display_name||item.name);
+    }else{
+      headerEl.innerHTML=`<div>${item.display_name||item.name}</div><small>Join request pending</small>`;
     }
+  }).catch(()=>renderEmpty(channelsEl,"Join failed"));
+}
 
-    function renderList(items, targetEl, type) {
-        targetEl.innerHTML = "";
-        if (!items.length) {
-            renderEmpty(
-                targetEl,
-                type === "person"
-                    ? "No other members yet. Invite someone to start chatting."
-                    : "Nothing yet."
-            );
-            return;
-        }
+function open(type,id,title){
+  active={type,id};
+  headerEl.innerHTML=`<div>${title||""}</div><small>${type==="channel"?"Channel":"Direct message"}</small>`;
+  input.disabled=false;
+  sendBtn.disabled=!input.value.trim();
+  closeSocket(); stopPoll();
+  fetch(messagesUrl(type,id),{credentials:"include"})
+    .then(r=>r.json()).then(d=>renderMessages(d.messages||[]));
+  openSocket(type,id);
+}
 
-        items.forEach(item => {
-            const div = document.createElement("div");
-            div.className = "chat-list-row";
-            div.style.padding = "10px 14px";
-            div.style.cursor = "pointer";
-            div.style.display = "flex";
-            div.style.justifyContent = "space-between";
-            div.style.alignItems = "center";
-            div.onmouseenter = () => div.style.background = "#f1f5f9";
-            div.onmouseleave = () => div.style.background = "transparent";
-            div.onclick = () => {
-                if (type === "person") {
-                    startDirectChat(item);
-                } else {
-                    openThread(item.type, item.id, item.display_name || item.name);
-                }
-            };
+function renderMessages(msgs){
+  bodyEl.innerHTML="";
+  msgs.forEach(appendMessage);
+  bodyEl.scrollTop=bodyEl.scrollHeight;
+}
 
-            const title = document.createElement("div");
-            title.style.fontWeight = 600;
-            title.textContent = item.display_name || item.name;
-            div.appendChild(title);
+function appendMessage(m){
+  const w=document.createElement("div");
+  w.className=`chat-bubble ${m.is_me?"me":"other"}`;
+  w.innerHTML=`<div class="chat-meta">${m.sender} · ${new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</div><div>${m.content}</div>`;
+  bodyEl.appendChild(w);
+  bodyEl.scrollTop=bodyEl.scrollHeight;
+}
 
-            if (item.unread_count) {
-                const badge = document.createElement("span");
-                badge.className = "pill";
-                badge.style.background = "#fee2e2";
-                badge.style.color = "#b91c1c";
-                badge.textContent = item.unread_count;
-                div.appendChild(badge);
-            }
-
-            targetEl.appendChild(div);
-        });
+function send(){
+  if(!active||!input.value.trim())return;
+  const f=new URLSearchParams();
+  f.append("thread_type",active.type);
+  f.append("thread_id",active.id);
+  f.append("content",input.value);
+  fetch(sendUrl,{
+    method:"POST",
+    headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+    body:f.toString(),
+    credentials:"include"
+  }).then(r=>r.json()).then(resp=>{
+    input.value=""; sendBtn.disabled=true;
+    if(resp && resp.created_at){
+      appendMessage({sender:resp.sender, content:resp.content, created_at:resp.created_at, is_me:true});
     }
+  }).catch(()=>{});
+}
 
-    function loadSummary() {
-        fetch(summaryUrl, { credentials: "include" })
-            .then(r => r.json())
-            .then(data => {
-                summaryCache = data;
-                if (data.error) {
-                    channelsEl.innerHTML = "";
-                    dmsEl.innerHTML = "";
-                    peopleEl.innerHTML = "";
-                    renderEmpty(channelsEl, data.error);
-                    return;
-                }
-                const q = (searchEl.value || "").toLowerCase();
-                const filterFn = item => (item.name || "").toLowerCase().includes(q) || (item.display_name || "").toLowerCase().includes(q);
-                renderList((data.channels || []).filter(filterFn), channelsEl, "channel");
-                renderList((data.dms || []).filter(filterFn), dmsEl, "dm");
-                renderList((data.members || []).filter(m => (m.name || "").toLowerCase().includes(q)), peopleEl, "person");
-            })
-            .catch(err => {
-                channelsEl.innerHTML = "";
-                dmsEl.innerHTML = "";
-                peopleEl.innerHTML = "";
-                renderEmpty(channelsEl, "Unable to load chat data.");
-                console.error("chat summary error", err);
-            });
+function startDM(p){
+  const f=new URLSearchParams();
+  f.append("user_id",p.id);
+  fetch(startDmUrl,{
+    method:"POST",
+    headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+    body:f.toString(),
+    credentials:"include"
+  }).then(r=>r.json()).then(d=>{
+    if(d.thread_id){open("dm",d.thread_id,p.name);}
+  });
+}
+
+function openSocket(type,id){
+  try{ socket=new WebSocket(`${wsBase}/${type}/${id}/`); }
+  catch(e){ startFallback(type,id); return; }
+  socket.onmessage=(evt)=>{
+    const data=JSON.parse(evt.data);
+    if(data.type==="message" && active && data.thread_id===active.id){
+      const m=data.message;
+      appendMessage({sender:m.sender, content:m.content, created_at:m.created_at, is_me:false});
     }
+  };
+  socket.onclose=()=>{socket=null; startFallback(type,id);};
+  socket.onerror=()=>{socket=null; startFallback(type,id);};
+}
 
-    function openThread(type, id, title) {
-        activeThread = { type, id };
-        headerEl.textContent = title || "Conversation";
-        sendBtn.disabled = false;
-        bodyEl.innerHTML = "<p style='color:#94a3b8;'>Loading...</p>";
-        fetch(messagesUrl(type, id), { credentials: "include" })
-            .then(r => r.json())
-            .then(data => renderMessages(data.messages || []))
-            .catch(err => {
-                bodyEl.innerHTML = "<p style='color:#ef4444;'>Unable to load messages.</p>";
-                console.error("chat messages error", err);
-            });
-        if (pollHandle) clearInterval(pollHandle);
-        pollHandle = setInterval(() => {
-            if (activeThread) {
-                fetch(messagesUrl(type, id), { credentials: "include" })
-                    .then(r => r.json())
-                    .then(data => renderMessages(data.messages || []))
-                    .catch(() => {});
-            }
-        }, 7000);
+function closeSocket(){ if(socket){socket.close();socket=null;} }
+function stopPoll(){ if(pollHandle){clearInterval(pollHandle);pollHandle=null;} }
+function startFallback(type,id){
+  stopPoll();
+  pollHandle=setInterval(()=>{
+    if(active && active.id===id){
+      fetch(messagesUrl(type,id),{credentials:"include"})
+        .then(r=>r.json()).then(d=>renderMessages(d.messages||[]));
     }
+  },7000);
+}
 
-    function renderMessages(msgs) {
-        bodyEl.innerHTML = "";
-        msgs.forEach(m => {
-            const wrap = document.createElement("div");
-            wrap.className = "chat-bubble";
-            wrap.style.margin = "8px 0";
-            wrap.style.maxWidth = "85%";
-            wrap.style.padding = "10px 12px";
-            wrap.style.borderRadius = "12px";
-            wrap.style.background = m.is_me ? "#0f4c81" : "#fff";
-            wrap.style.color = m.is_me ? "#fff" : "#0f172a";
-            wrap.style.marginLeft = m.is_me ? "auto" : "0";
-            const meta = document.createElement("div");
-            meta.style.fontSize = "12px";
-            meta.style.opacity = 0.8;
-            meta.textContent = `${m.sender} • ${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-            const text = document.createElement("div");
-            text.textContent = m.content;
-            wrap.appendChild(meta);
-            wrap.appendChild(text);
-            bodyEl.appendChild(wrap);
-        });
-        bodyEl.scrollTop = bodyEl.scrollHeight;
-    }
-
-    function sendMessage() {
-        if (!activeThread) return;
-        const content = (messageInput.value || "").trim();
-        if (!content) return;
-        const form = new URLSearchParams();
-        form.append("thread_type", activeThread.type);
-        form.append("thread_id", activeThread.id);
-        form.append("content", content);
-        fetch(sendUrl, {
-            method: "POST",
-            headers: { "X-CSRFToken": csrfToken(), "Content-Type": "application/x-www-form-urlencoded" },
-            body: form.toString(),
-            credentials: "include",
-        })
-            .then(r => r.json())
-            .then(() => {
-                messageInput.value = "";
-                if (activeThread) {
-                    fetch(messagesUrl(activeThread.type, activeThread.id), { credentials: "include" })
-                        .then(r => r.json())
-                        .then(data => renderMessages(data.messages || []));
-                }
-            })
-            .catch(err => console.error("send error", err));
-    }
-
-    function startDirectChat(person) {
-        const form = new URLSearchParams();
-        form.append("user_id", person.id);
-        fetch(startDmUrl, {
-            method: "POST",
-            headers: { "X-CSRFToken": csrfToken(), "Content-Type": "application/x-www-form-urlencoded" },
-            body: form.toString(),
-            credentials: "include",
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.thread_id) {
-                    openThread("dm", data.thread_id, person.name);
-                    loadSummary();
-                }
-            })
-            .catch(err => console.error("start dm error", err));
-    }
-
-    sendBtn.addEventListener("click", sendMessage);
-    messageInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    searchEl.addEventListener("input", () => loadSummary());
-    refreshBtn.addEventListener("click", () => loadSummary());
-    createChannelBtn.addEventListener("click", () => {
-        const name = prompt("Channel name (e.g., general)");
-        if (!name) return;
-        const payload = new URLSearchParams();
-        payload.append("name", name);
-        fetch("/chat/widget/channel/create/", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded", "X-CSRFToken": csrfToken() },
-            body: payload.toString(),
-            credentials: "include",
-        })
-            .then(r => r.json())
-            .then(() => loadSummary())
-            .catch(err => console.error("create channel error", err));
-    });
-
-    loadSummary();
+sendBtn.onclick=send;
+input.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();send();}};
+input.oninput=()=>{sendBtn.disabled=!input.value.trim();};
+searchEl.oninput=load;
+load();
 })();
 </script>
+
 {% endblock %}

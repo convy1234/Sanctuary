@@ -2,6 +2,7 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from accounts.models import User
 
 
 class Channel(models.Model):
@@ -175,3 +176,31 @@ class ChatFile(models.Model):
     
     def __str__(self):
         return self.file_name
+
+
+class ChannelJoinRequest(models.Model):
+    """
+    Tracks requests to join a private/non-public channel.
+    """
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    channel = models.ForeignKey(Channel, on_delete=models.CASCADE, related_name="join_requests")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="channel_join_requests")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="channel_join_decisions"
+    )
+
+    class Meta:
+        unique_together = ("channel", "user")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} -> {self.channel} [{self.status}]"

@@ -197,6 +197,7 @@ def api_docs_view(request):
         "channel": "88888888-8888-8888-8888-888888888888",
         "dm": "99999999-9999-9999-9999-999999999999",
         "message": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "join_request": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
     }
 
     api_sections = [
@@ -514,6 +515,27 @@ def api_docs_view(request):
                     "sample": None,
                 },
                 {
+                    "label": "Join channel",
+                    "method": "POST",
+                    "path": absolute("channel_join_api", channel_id=sample_ids["channel"]),
+                    "note": "Public channels: auto-join. Private: creates a pending join request.",
+                    "sample": None,
+                },
+                {
+                    "label": "Approve join request",
+                    "method": "POST",
+                    "path": absolute("channel_join_approve_api", request_id=sample_ids["join_request"]),
+                    "note": "Channel creator/staff approve a pending request and add membership.",
+                    "sample": None,
+                },
+                {
+                    "label": "Leave channel",
+                    "method": "POST",
+                    "path": absolute("channel_leave_api", channel_id=sample_ids["channel"]),
+                    "note": "Remove caller membership from the channel.",
+                    "sample": None,
+                },
+                {
                     "label": "Send channel message",
                     "method": "POST",
                     "path": absolute("send_channel_message_api", channel_id=sample_ids["channel"]),
@@ -553,6 +575,13 @@ def api_docs_view(request):
                     "method": "DELETE",
                     "path": absolute("delete_message_api", message_id=sample_ids["message"]),
                     "note": "Delete a message you own (admins may override).",
+                    "sample": None,
+                },
+                {
+                    "label": "WebSocket (realtime)",
+                    "method": "WS",
+                    "path": f"wss://<host>/ws/chat/<channel|dm>/<uuid>/",
+                    "note": "Subscribe to channel or DM updates; uses session cookie auth.",
                     "sample": None,
                 },
                 {
