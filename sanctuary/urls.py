@@ -14,6 +14,7 @@ urlpatterns = [
     path('member/', include('member.urls')),
     path('inventory/', include('inventory.urls')),
     path('accounting/', include('accounting.urls')),
+    path('chat/', include('chat.urls')),
     
 
 

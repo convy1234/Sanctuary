@@ -726,7 +726,7 @@ def inventory_item_update_view(request, item_id):
     
     return render(request, 'inventory/items/edit.html', context)
 
-
+from church.models import Department
 @login_required
 @require_http_methods(["DELETE", "POST"])
 def inventory_item_delete_view(request, item_id):
@@ -865,7 +865,7 @@ def inventory_checkout_list_view(request):
         'overdue_only': overdue_only,
     })
 
-
+from member.models import Member
 @login_required
 @require_http_methods(["GET", "POST"])
 def inventory_checkout_create_view(request):

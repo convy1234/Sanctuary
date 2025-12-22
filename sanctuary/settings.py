@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "member",
     "inventory",
     "accounting",
+    "chat",
 
     # third-party
     "rest_framework",
