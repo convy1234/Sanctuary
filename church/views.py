@@ -9243,12 +9243,27 @@ def send_channel_message_api_view(request, channel_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # Get reply_to message ID if provided
+    reply_to_id = request.data.get('reply_to')
+    reply_to_message = None
+    
+    if reply_to_id:
+        try:
+            reply_to_message = Message.objects.get(
+                id=reply_to_id,
+                channel=channel
+            )
+        except Message.DoesNotExist:
+            # If reply_to message doesn't exist, just ignore it
+            pass
+    
     try:
-        # Create message
+        # Create message with reply_to reference
         message = Message.objects.create(
             channel=channel,
             sender=user,
-            content=content
+            content=content,
+            reply_to=reply_to_message  # Add this
         )
         
         # Mark as read by sender
@@ -9269,17 +9284,24 @@ def send_channel_message_api_view(request, channel_id):
                 'avatar': None,
             }
         
+        # Prepare response with reply_to info
+        message_data = {
+            'id': str(message.id),
+            'content': message.content,
+            'sender': sender_info,
+            'created_at': message.created_at.isoformat(),
+            'created_at_timestamp': int(message.created_at.timestamp() * 1000),
+        }
+        
+        # Add reply_to to response if exists
+        if message.reply_to:
+            message_data['reply_to'] = str(message.reply_to.id)
+        
         return Response({
             'success': True,
             'message': 'Message sent successfully',
             'message_id': str(message.id),
-            'message': {
-                'id': str(message.id),
-                'content': message.content,
-                'sender': sender_info,
-                'created_at': message.created_at.isoformat(),
-                'created_at_timestamp': int(message.created_at.timestamp() * 1000),
-            },
+            'message': message_data,  # Use the updated message_data
             'target': {
                 'type': 'channel',
                 'id': str(channel.id),
@@ -9292,7 +9314,6 @@ def send_channel_message_api_view(request, channel_id):
             {'success': False, 'error': str(e)}, 
             status=status.HTTP_400_BAD_REQUEST
         )
-
 
 
 
@@ -9410,7 +9431,7 @@ def start_dm_api_view(request):
 @permission_classes([IsAuthenticated])
 def dm_detail_api_view(request, dm_id):
     """
-    Get DM thread details and messages - FIXED VERSION
+    Get DM thread details and messages - FIXED VERSION with reply_to
     """
     user = request.user
     
@@ -9443,10 +9464,10 @@ def dm_detail_api_view(request, dm_id):
     limit = int(request.query_params.get('limit', 50))
     offset = (page - 1) * limit
     
-    # Get messages (oldest first for chat UI)
+    # Get messages (oldest first for chat UI) with select_related for reply_to
     messages = Message.objects.filter(
         direct_message=dm_thread
-    ).select_related('sender').order_by('created_at')[offset:offset + limit]
+    ).select_related('sender', 'reply_to').order_by('created_at')[offset:offset + limit]
     
     # Get other participant(s)
     other_participants = dm_thread.participants.exclude(uid=user.uid)
@@ -9500,7 +9521,7 @@ def dm_detail_api_view(request, dm_id):
             'email': participant.email,
         })
     
-    # Format messages
+    # Format messages WITH reply_to
     messages_data = []
     for msg in messages:
         # Get sender info with fallbacks
@@ -9552,13 +9573,31 @@ def dm_detail_api_view(request, dm_id):
                 'role': role,
             }
         
-        messages_data.append({
+        # Build message data
+        message_data = {
             'id': str(msg.id),
             'content': msg.content,
             'sender': sender_info,
             'created_at': msg.created_at.isoformat(),
             'created_at_timestamp': int(msg.created_at.timestamp() * 1000),
-        })
+        }
+        
+        # ADD reply_to if it exists
+        if msg.reply_to:
+            message_data['reply_to'] = str(msg.reply_to.id)
+            
+            # Optionally include replied message preview data
+            try:
+                replied_sender_name = msg.reply_to.sender.member_profile.full_name if hasattr(msg.reply_to.sender, 'member_profile') else msg.reply_to.sender.username
+                message_data['reply_to_preview'] = {
+                    'content': msg.reply_to.content[:100],  # First 100 chars
+                    'sender_name': replied_sender_name,
+                    'sender_id': str(msg.reply_to.sender.uid)
+                }
+            except:
+                pass
+        
+        messages_data.append(message_data)
     
     # Get thread info
     # Check if is_group exists, default to False
@@ -9589,12 +9628,10 @@ def dm_detail_api_view(request, dm_id):
 @permission_classes([IsAuthenticated])
 def send_dm_message_api_view(request, dm_id):
     """
-    Send message to a DM thread - FIXED VERSION
+    Send message to a DM thread
     """
     user = request.user
-    
-    # Get user's organization from User model
-    organization = user.organization
+    organization = get_user_organization(user)
     
     if not organization:
         return Response(
@@ -9624,74 +9661,74 @@ def send_dm_message_api_view(request, dm_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    # Get reply_to message ID if provided
+    reply_to_id = request.data.get('reply_to')
+    reply_to_message = None
+    
+    if reply_to_id:
+        try:
+            reply_to_message = Message.objects.get(
+                id=reply_to_id,
+                direct_message=dm_thread
+            )
+        except Message.DoesNotExist:
+            # If reply_to message doesn't exist, just ignore it
+            pass
+    
     try:
-        # Create message
+        # Create message with reply_to reference
         message = Message.objects.create(
             direct_message=dm_thread,
             sender=user,
-            content=content
+            content=content,
+            reply_to=reply_to_message
         )
         
         # Mark as read by sender
         message.read_by.add(user)
         
-        # Get sender info with fallbacks (same logic as dm_detail_api_view)
-        display_name = user.email.split('@')[0]
-        avatar = None
-        
-        # Try to get from member profile
+        # Get sender info for response
         try:
-            member_profile = user.member_profile
-            if member_profile:
-                display_name = member_profile.full_name
-                if member_profile.photo:
-                    avatar = request.build_absolute_uri(member_profile.photo.url)
+            sender_info = {
+                'id': str(user.uid),
+                'name': user.member_profile.full_name,
+                'avatar': request.build_absolute_uri(user.member_profile.photo.url) if user.member_profile.photo else None,
+                'role': user.member_profile.family_role,
+            }
         except AttributeError:
-            pass  # No member profile, that's OK!
+            sender_info = {
+                'id': str(user.uid),
+                'name': user.username,
+                'avatar': None,
+            }
         
-        # Get role
-        role = 'Member'
-        if user.is_pastor:
-            role = 'Pastor'
-        elif user.is_hod:
-            role = 'Head of Department'
-        elif user.is_admin:
-            role = 'Admin'
-        elif user.is_owner:
-            role = 'Owner'
-        elif user.is_worker:
-            role = 'Worker'
-        elif user.is_volunteer:
-            role = 'Volunteer'
-        
-        # Fallback to user's first_name + last_name
-        if display_name == user.email.split('@')[0]:
-            if user.first_name:
-                name_parts = [user.first_name.strip()]
-                if user.last_name and user.last_name.strip() and user.last_name != user.email:
-                    name_parts.append(user.last_name.strip())
-                name = " ".join(name_parts).strip()
-                if name:
-                    display_name = name
-        
-        sender_info = {
-            'id': str(user.uid),
-            'name': display_name,
-            'avatar': avatar,
-            'role': role,
+        # Prepare response with reply_to info
+        message_data = {
+            'id': str(message.id),
+            'content': message.content,
+            'sender': sender_info,
+            'created_at': message.created_at.isoformat(),
+            'created_at_timestamp': int(message.created_at.timestamp() * 1000),
         }
+        
+        # Add reply_to to response if exists
+        if message.reply_to:
+            message_data['reply_to'] = str(message.reply_to.id)
+            # Also include the replied message content for preview
+            try:
+                message_data['reply_to_message'] = {
+                    'id': str(message.reply_to.id),
+                    'content': message.reply_to.content,
+                    'sender_name': message.reply_to.sender.member_profile.full_name if hasattr(message.reply_to.sender, 'member_profile') else message.reply_to.sender.username
+                }
+            except:
+                pass
         
         return Response({
             'success': True,
             'message': 'Message sent successfully',
             'message_id': str(message.id),
-            'message': {
-                'id': str(message.id),
-                'content': message.content,
-                'sender': sender_info,
-                'created_at': message.created_at.isoformat(),
-                'created_at_timestamp': int(message.created_at.timestamp() * 1000),
-            },
+            'message': message_data,  # Use the updated message_data
             'target': {
                 'type': 'dm',
                 'id': str(dm_thread.id),

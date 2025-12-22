@@ -1644,6 +1644,11 @@ class Message(models.Model):
                               related_name='messages')
     content = models.TextField()
     
+    # Reply to another message (for threading)
+    reply_to = models.ForeignKey('self', on_delete=models.SET_NULL, 
+                                 null=True, blank=True, 
+                                 related_name='replies')
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
