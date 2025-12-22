@@ -1376,8 +1376,8 @@ def voucher_dashboard_view(request):
         'can_approve': request.user.is_staff or getattr(request.user, 'is_admin', False) or getattr(request.user, 'is_finance', False),
         'can_pay': request.user.is_staff or getattr(request.user, 'is_admin', False) or getattr(request.user, 'is_finance', False),
     }
-    
     return render(request, 'vouchers/dashboard.html', context)
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def voucher_create_blank_view(request, template_id=None):
