@@ -62,7 +62,7 @@
                                     {% elif transaction.transaction_type == 'return' %}#dbeafe;
                                     {% else %}#f3f4f6;
                                     {% endif %}">
-                                    {% if transaction.transaction_type == 'add' %}⬆️
+                                    {% if transaction.transaction_type == 'add' %}⬆
                                     {% elif transaction.transaction_type == 'checkout' %}📤
                                     {% elif transaction.transaction_type == 'return' %}📥
                                     {% else %}📊{% endif %}
@@ -92,7 +92,7 @@
             <!-- Low Stock Alerts -->
             <div class="section-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin:0; color:#dc2626;">⚠️ Low Stock Alerts</h3>
+                    <h3 style="margin:0; color:#dc2626;">⚠ Low Stock Alerts</h3>
                     <a href="{% url 'inventory_item_list' %}?low_stock=true" class="muted" style="font-size:14px;">View All →</a>
                 </div>
                 
@@ -146,7 +146,7 @@
                         <span style="font-size:20px;">→</span>
                     </a>
                     
-                    <a href="#" class="quick-action">
+                    <a href="{% url 'inventory_item_list' %}" class="quick-action">
                         <span style="font-size:20px;">📋</span>
                         <div>
                             <strong>Generate Report</strong>
@@ -155,7 +155,7 @@
                         <span style="font-size:20px;">→</span>
                     </a>
                     
-                    <a href="#" class="quick-action">
+                    <a href="{% url 'inventory_checkout_list' %}" class="quick-action">
                         <span style="font-size:20px;">🎯</span>
                         <div>
                             <strong>Run Audit</strong>
@@ -169,7 +169,7 @@
             <!-- Overdue Checkouts -->
             <div class="section-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin:0; color:#dc2626;">⏰ Overdue Checkouts</h3>
+                    <h3 style="margin:0; color:#dc2626;">� Overdue Checkouts</h3>
                     <a href="{% url 'inventory_checkout_list' %}?status=overdue" class="muted" style="font-size:14px;">View All →</a>
                 </div>
                 

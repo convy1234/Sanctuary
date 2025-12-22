@@ -14,7 +14,7 @@
         </div>
         <div class="actions">
             <a href="{% url 'inventory_checkout_create' %}" class="pill">+ New Checkout</a>
-            <a href="{% url 'inventory_dashboard' %}" class="pill" style="background:#4f46e5;">📊 Dashboard</a>
+            <a href="{% url 'inventory_dashboard' %}" class="pill" style="background:#4f46e5;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â  Dashboard</a>
         </div>
     </div>
 
@@ -115,7 +115,7 @@
                                         <strong>{{ checkout.item.name }}</strong>
                                         <div class="muted" style="font-size:12px;">
                                             {{ checkout.department.name }}
-                                            {% if checkout.purpose %}• {{ checkout.purpose|truncatechars:30 }}{% endif %}
+                                            {% if checkout.purpose %}ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ {{ checkout.purpose|truncatechars:30 }}{% endif %}
                                         </div>
                                     </div>
                                 </div>
@@ -162,26 +162,43 @@
                                     <a href="{% url 'inventory_item_detail' checkout.item.id %}" 
                                        style="padding:6px 10px; background:var(--primary-soft); border-radius:6px; font-size:12px;"
                                        title="View Item">
-                                        📦
+                                        ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦
                                     </a>
                                     {% if checkout.status == 'active' or checkout.status == 'overdue' %}
-                                    <a href="#" onclick="showReturnModal('{{ checkout.id }}', '{{ checkout.item.name }}', '{{ checkout.member.full_name }}', '{{ checkout.quantity }}')"
+                                    <a href="#" onclick="showReturnModal('{{ checkout.id }}', '{{ checkout.item.name|escapejs }}', '{{ checkout.member.full_name|escapejs }}', '{{ checkout.quantity }}')"
                                        style="padding:6px 10px; background:#d1fae5; border-radius:6px; font-size:12px;"
                                        title="Return Item">
-                                        ↩️
+                                        ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸
                                     </a>
                                     {% endif %}
                                     {% if checkout.status == 'active' %}
-                                    <a href="#" onclick="showExtendModal('{{ checkout.id }}', '{{ checkout.item.name }}', '{{ checkout.due_date|date:"Y-m-d" }}')"
+                                    <a href="#" onclick="showExtendModal('{{ checkout.id }}', '{{ checkout.item.name|escapejs }}', '{{ checkout.due_date|date:"Y-m-d" }}')"
                                        style="padding:6px 10px; background:#e0e7ff; border-radius:6px; font-size:12px;"
                                        title="Extend Due Date">
-                                        📅
+                                        ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦
                                     </a>
                                     {% endif %}
-                                    <a href="#" onclick="showCheckoutDetails('{{ checkout.id }}')"
+                                    <a href="#"
+                                       onclick="showCheckoutDetails(this)"
+                                       data-checkout-id="{{ checkout.id }}"
+                                       data-item-id="{{ checkout.item.id }}"
+                                       data-member-id="{{ checkout.member.id }}"
+                                       data-item-name="{{ checkout.item.name|escape }}"
+                                       data-member-name="{{ checkout.member.full_name|escape }}"
+                                       data-quantity="{{ checkout.quantity }}"
+                                       data-status="{{ checkout.status }}"
+                                       data-status-display="{{ checkout.get_status_display|escape }}"
+                                       data-checkout-date="{{ checkout.checkout_date|date:'M d, Y' }}"
+                                       data-due-date="{{ checkout.due_date|date:'M d, Y' }}"
+                                       data-returned-at="{{ checkout.returned_at|date:'M d, Y' }}"
+                                       data-days-overdue="{{ checkout.days_overdue|default:0 }}"
+                                       data-purpose="{{ checkout.purpose|default_if_none:''|escape }}"
+                                       data-event="{{ checkout.event_name|default_if_none:''|escape }}"
+                                       data-notes="{{ checkout.notes|default_if_none:''|escape }}"
+                                       data-return-notes="{{ checkout.return_notes|default_if_none:''|escape }}"
                                        style="padding:6px 10px; background:#f3f4f6; border-radius:6px; font-size:12px;"
                                        title="View Details">
-                                        👁️
+                                        ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸
                                     </a>
                                 </div>
                             </td>
@@ -197,7 +214,7 @@
                 <div style="display:flex; gap:8px; align-items:center;">
                     {% if checkouts.has_previous %}
                     <a href="?page={{ checkouts.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if member_id %}&member={{ member_id }}{% endif %}{% if overdue_only %}&overdue=true{% endif %}" 
-                       class="pill">← Previous</a>
+                       class="pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â  Previous</a>
                     {% endif %}
                     
                     <span style="padding:8px 16px; background:var(--primary-soft); border-radius:8px; font-size:14px;">
@@ -206,7 +223,7 @@
                     
                     {% if checkouts.has_next %}
                     <a href="?page={{ checkouts.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if member_id %}&member={{ member_id }}{% endif %}{% if overdue_only %}&overdue=true{% endif %}" 
-                       class="pill">Next →</a>
+                       class="pill">Next ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</a>
                     {% endif %}
                 </div>
             </div>
@@ -214,7 +231,7 @@
             
         {% else %}
             <div style="text-align:center; padding:40px 20px;">
-                <div style="font-size:48px; margin-bottom:16px;">📤</div>
+                <div style="font-size:48px; margin-bottom:16px;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤</div>
                 <h3 style="margin:0 0 8px;">No checkouts found</h3>
                 <p class="muted" style="margin-bottom:20px;">
                     {% if status_filter or member_id or overdue_only %}
@@ -233,8 +250,8 @@
         <!-- Overdue Checkouts -->
         <div class="section-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="margin:0; color:#dc2626;">⚠️ Overdue Checkouts</h3>
-                <a href="?status=overdue" class="muted" style="font-size:14px;">View All →</a>
+                <h3 style="margin:0; color:#dc2626;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ Overdue Checkouts</h3>
+                <a href="?status=overdue" class="muted" style="font-size:14px;">View All ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</a>
             </div>
             
             {% if overdue_checkouts %}
@@ -244,10 +261,10 @@
                         <div>
                             <strong>{{ checkout.item.name }}</strong>
                             <div class="muted" style="font-size:12px;">
-                                {{ checkout.member.full_name }} • {{ checkout.days_overdue }} days overdue
+                                {{ checkout.member.full_name }} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ {{ checkout.days_overdue }} days overdue
                             </div>
                         </div>
-                        <a href="#" onclick="showReturnModal('{{ checkout.id }}', '{{ checkout.item.name }}', '{{ checkout.member.full_name }}', '{{ checkout.quantity }}')"
+                        <a href="#" onclick="showReturnModal('{{ checkout.id }}', '{{ checkout.item.name|escapejs }}', '{{ checkout.member.full_name|escapejs }}', '{{ checkout.quantity }}')"
                            class="badge" style="background:#dc2626; color:white; font-size:11px;">
                             Return
                         </a>
@@ -256,7 +273,7 @@
                 </div>
             {% else %}
                 <div style="text-align:center; padding:20px;">
-                    <div style="font-size:32px; margin-bottom:12px;">✅</div>
+                    <div style="font-size:32px; margin-bottom:12px;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</div>
                     <p class="muted">No overdue checkouts</p>
                 </div>
             {% endif %}
@@ -265,7 +282,7 @@
         <!-- Recent Activity -->
         <div class="section-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="margin:0;">📋 Recent Activity</h3>
+                <h3 style="margin:0;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ Recent Activity</h3>
                 <span class="muted" style="font-size:14px;">Today</span>
             </div>
             
@@ -276,7 +293,7 @@
                         <div>
                             <strong>{{ checkout.item.name }}</strong>
                             <div class="muted" style="font-size:12px;">
-                                {{ checkout.member.full_name }} • {{ checkout.quantity }} units
+                                {{ checkout.member.full_name }} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ {{ checkout.quantity }} units
                             </div>
                         </div>
                         <span class="status-badge status-{{ checkout.status }}" style="font-size:10px;">
@@ -287,7 +304,7 @@
                 </div>
             {% else %}
                 <div style="text-align:center; padding:20px;">
-                    <div style="font-size:32px; margin-bottom:12px;">📅</div>
+                    <div style="font-size:32px; margin-bottom:12px;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</div>
                     <p class="muted">No activity today</p>
                 </div>
             {% endif %}
@@ -301,7 +318,7 @@
         <h3 style="margin-top:0;">Return Item</h3>
         <p id="return-modal-description"></p>
         
-        <form id="return-form" method="post" action="{% url 'return_checkout' 0 %}" style="display:flex; flex-direction:column; gap:16px;">
+        <form id="return-form" method="post" action="{% url 'inventory_checkout_return' '00000000-0000-0000-0000-000000000000' %}" data-action-template="{% url 'inventory_checkout_return' '00000000-0000-0000-0000-000000000000' %}" style="display:flex; flex-direction:column; gap:16px;">
             {% csrf_token %}
             <input type="hidden" id="return-checkout-id" name="checkout_id">
             
@@ -353,7 +370,7 @@
         <h3 style="margin-top:0;">Extend Due Date</h3>
         <p id="extend-modal-description"></p>
         
-        <form id="extend-form" method="post" action="{% url 'extend_checkout' 0 %}" style="display:flex; flex-direction:column; gap:16px;">
+        <form id="extend-form" method="post" action="{% url 'inventory_checkout_extend' '00000000-0000-0000-0000-000000000000' %}" data-action-template="{% url 'inventory_checkout_extend' '00000000-0000-0000-0000-000000000000' %}" style="display:flex; flex-direction:column; gap:16px;">
             {% csrf_token %}
             <input type="hidden" id="extend-checkout-id" name="checkout_id">
             
@@ -389,7 +406,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h3 style="margin:0;">Checkout Details</h3>
             <button onclick="closeDetailsModal()" 
-                    style="background:none; border:none; font-size:20px; cursor:pointer;">×</button>
+                    style="background:none; border:none; font-size:20px; cursor:pointer;">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬</button>
         </div>
         
         <div id="details-content">
@@ -603,7 +620,9 @@ function showReturnModal(checkoutId, itemName, memberName, quantity) {
     
     // Update form action URL
     const form = document.getElementById('return-form');
-    form.action = form.action.replace('/0/', `/${checkoutId}/`);
+    const returnTemplate = form.dataset.actionTemplate || form.action;
+    form.dataset.actionTemplate = returnTemplate;
+    form.action = returnTemplate.replace('00000000-0000-0000-0000-000000000000', checkoutId);
     
     // Show modal
     modal.style.display = 'flex';
@@ -652,7 +671,9 @@ function showExtendModal(checkoutId, itemName, currentDueDate) {
     
     // Update form action URL
     const form = document.getElementById('extend-form');
-    form.action = form.action.replace('/0/', `/${checkoutId}/`);
+    const extendTemplate = form.dataset.actionTemplate || form.action;
+    form.dataset.actionTemplate = extendTemplate;
+    form.action = extendTemplate.replace('00000000-0000-0000-0000-000000000000', checkoutId);
     
     // Show modal
     modal.style.display = 'flex';
@@ -664,11 +685,65 @@ function closeExtendModal() {
 }
 
 // Show checkout details modal (with AJAX loading)
-function showCheckoutDetails(checkoutId) {
+function showCheckoutDetails(triggerOrId) {
     const modal = document.getElementById('details-modal');
     const content = document.getElementById('details-content');
+    const data = triggerOrId && triggerOrId.dataset ? triggerOrId.dataset : null;
+
+    // If we have inline data, render without an API call
+    if (data && data.itemName) {
+        const esc = (value) => {
+            if (value === undefined || value === null) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const section = (label, value) => {
+            if (!value) return '';
+            return `<div style="margin-bottom:16px;">
+                        <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">${label}</div>
+                        <div style="white-space:pre-line;">${esc(value)}</div>
+                    </div>`;
+        };
+
+        const dueDateBlock = data.dueDate ? `<div><div style="font-size:11px; color:var(--muted);">Due Date</div><div>${esc(data.dueDate)}</div></div>` : '';
+        const returnedBlock = data.returnedAt ? `<div><div style="font-size:11px; color:var(--muted);">Returned Date</div><div>${esc(data.returnedAt)}</div></div>` : '';
+        const overdueBlock = data.daysOverdue && Number(data.daysOverdue) > 0 ? `<div><div style="font-size:11px; color:var(--muted);">Days Overdue</div><div style="color:#dc2626;">${esc(data.daysOverdue)} days</div></div>` : '';
+
+        content.innerHTML = `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+                <div><div style="font-size:12px; color:var(--muted);">Item</div><div style="font-weight:700; font-size:16px;">${esc(data.itemName)}</div></div>
+                <div><div style="font-size:12px; color:var(--muted);">Member</div><div style="font-weight:700; font-size:16px;">${esc(data.memberName)}</div></div>
+                <div><div style="font-size:12px; color:var(--muted);">Quantity</div><div style="font-weight:700; font-size:16px;">${esc(data.quantity)}</div></div>
+                <div><div style="font-size:12px; color:var(--muted);">Status</div><div><span class="status-badge status-${esc(data.status)}">${esc(data.statusDisplay || data.status)}</span></div></div>
+            </div>
+            <div style="background:#f9fafb; padding:16px; border-radius:8px; margin-bottom:20px;">
+                <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">Dates</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div><div style="font-size:11px; color:var(--muted);">Checkout Date</div><div>${esc(data.checkoutDate)}</div></div>
+                    ${dueDateBlock}
+                    ${returnedBlock}
+                    ${overdueBlock}
+                </div>
+            </div>
+            ${section('Purpose', data.purpose)}
+            ${section('Related Event', data.event)}
+            ${section('Notes', data.notes)}
+            ${section('Return Notes', data.returnNotes)}
+            <div style="display:flex; gap:8px; margin-top:20px;">
+                <a href="/inventory/items/${esc(data.itemId)}/" style="padding:8px 16px; background:var(--primary-soft); border-radius:6px; font-size:12px; text-decoration:none;">View Item</a>
+                <a href="/member/members/${esc(data.memberId)}/" style="padding:8px 16px; background:#e0e7ff; border-radius:6px; font-size:12px; text-decoration:none;">View Member</a>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        return;
+    }
     
-    // Show loading spinner
+    // Show loading spinner (fallback when inline data is unavailable)
     content.innerHTML = `
         <div style="text-align:center; padding:40px;">
             <div class="spinner"></div>
@@ -677,13 +752,13 @@ function showCheckoutDetails(checkoutId) {
     `;
     
     // Fetch checkout details via AJAX
-    fetch(`/inventory/api/checkouts/${checkoutId}/`)
+    fetch(`/inventory/api/checkouts/${triggerOrId}/`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
                 content.innerHTML = `
                     <div style="text-align:center; padding:40px; color:#dc2626;">
-                        <div style="font-size:48px; margin-bottom:16px;">❌</div>
+                        <div style="font-size:48px; margin-bottom:16px;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</div>
                         <p>${data.error}</p>
                     </div>
                 `;
@@ -787,7 +862,7 @@ function showCheckoutDetails(checkoutId) {
         .catch(error => {
             content.innerHTML = `
                 <div style="text-align:center; padding:40px; color:#dc2626;">
-                    <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+                    <div style="font-size:48px; margin-bottom:16px;">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸</div>
                     <p>Error loading details</p>
                     <p style="font-size:12px;">${error.message}</p>
                 </div>

@@ -1,65 +1,93 @@
 {% extends "base.html" %}
-{% block title %}API Reference Aú Sanctuary{% endblock %}
+{% block title %}API Reference · Sanctuary{% endblock %}
+
+{% block head_extra %}
+<style>
+    .api-hero { display: grid; gap: 10px; background: linear-gradient(135deg, #0f4c81 0%, #0b325c 100%); color: #f0f6ff; }
+    .api-hero h1 { margin: 4px 0 0; color: #fff; }
+    .api-hero .muted { color: #d9e6ff; }
+    .pill-lite { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); color: #f0f6ff; font-weight: 700; font-size: 13px; }
+    .api-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+    .api-section { display: grid; gap: 12px; }
+    .section-heading { display: flex; gap: 12px; align-items: flex-start; }
+    .section-icon { width: 38px; height: 38px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); border-radius: 12px; font-size: 18px; }
+    .endpoint-row { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: #f9fbff; }
+    .endpoint-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .method { font-weight: 800; font-size: 12px; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .method-get { background: #e1f2ff; color: #0f4c81; }
+    .method-post { background: #e8f7ed; color: #167c3c; }
+    .method-patch { background: #fff3d9; color: #92400e; }
+    .method-delete { background: #ffe8e5; color: #b91c1c; }
+    .endpoint-path { display: block; font-family: "Consolas", "SFMono-Regular", Menlo, monospace; font-size: 13px; padding: 6px 8px; background: #fff; border: 1px solid var(--border); border-radius: 8px; margin: 6px 0; }
+    .code-block { background: #0b1220; color: #e2e8f0; padding: 10px; border-radius: 10px; font-size: 13px; overflow-x: auto; }
+    .tag-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag { padding: 4px 8px; border-radius: 8px; background: #eef2ff; color: #111827; font-weight: 700; font-size: 12px; }
+    .checklist { display: grid; gap: 8px; }
+    .checklist li { margin-left: 16px; }
+    .endpoint-label { font-weight: 700; color: var(--text); }
+    .endpoint-note { margin: 0; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h1>Sanctuary API</h1>
-    <p>Authentication uses JWT (SimpleJWT). Include <code>Authorization: Bearer &lt;access_token&gt;</code> for protected endpoints.</p>
+<div class="api-hero card">
+    <div class="tag-row">
+        <span class="pill-lite">Mobile ready</span>
+        <span class="pill-lite">Dashboard aligned</span>
+        <span class="pill-lite">JWT secured</span>
+    </div>
+    <h1>Unified API surface for web + mobile</h1>
+    <p class="muted">All endpoints below are live in this environment. Use the bearer token header (<code>{{ auth_header }}</code>) and plug the URLs directly into your mobile SDK or dashboard widgets.</p>
+    <div class="code-block">{{ curl_example }}</div>
 </div>
 
-<div class="card">
-    <h2>Auth</h2>
-    <div class="endpoint">
-        <div><strong>POST</strong> <code>{% url 'api_auth_login' %}</code></div>
-        <p>Obtain JWT tokens with email/password.</p>
-<pre>{
-  "email": "user@example.com",
-  "password": "secret"
-}</pre>
-    </div>
-    <div class="endpoint">
-        <div><strong>POST</strong> <code>{% url 'api_auth_refresh' %}</code></div>
-        <p>Refresh access token.</p>
-<pre>{ "refresh": "..." }</pre>
-    </div>
-    <div class="endpoint">
-        <div><strong>GET</strong> <code>{% url 'api_auth_me' %}</code></div>
-        <p>Return the authenticated user's details (requires JWT in Authorization header).</p>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Invitations</h2>
-    <div class="endpoint">
-        <div><strong>POST</strong> <code>{% url 'api_invitation_create' %}</code></div>
-        <p>Create an invitation (requires auth and invite permission).</p>
-<pre>{
-  "email": "invitee@example.com",
-  "organization": "org-uuid",
-  "role": "worker",
-  "note": "optional",
-  "expires_at": "2025-12-31T00:00:00Z",
-  "as_owner": false
-}</pre>
-    </div>
-    <div class="endpoint">
-        <div><strong>POST</strong> <code>{% url 'api_invitation_accept' %}</code></div>
-        <p>Accept an invitation and receive JWT tokens.</p>
-<pre>{
-  "token": "invite-token",
-  "password": "new-password",
-  "first_name": "John",
-  "last_name": "Doe"
-}</pre>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Web Pages (for reference)</h2>
-    <ul class="list">
-        <li><code>{% url 'login' %}</code> - web login</li>
-        <li><code>{% url 'accept_invite' %}</code> - web invite acceptance</li>
-        <li><code>{% url 'create_org_owner' %}</code> - superuser org + owner invite</li>
-        <li><code>{% url 'dashboard' %}</code> - user dashboard (auth required)</li>
+<div class="card checklist">
+    <h3 style="margin-top:0;">Integration quick steps</h3>
+    <ul>
+        <li>Authenticate with <code>/accounts/api/auth/login/</code>; persist both <code>access</code> and <code>refresh</code>.</li>
+        <li>Send <code>{{ auth_header }}</code> on every protected request.</li>
+        <li>Scope calls by organization: membership, vouchers, campuses, and inventory are auto-filtered server-side.</li>
+        <li>Use the same endpoints in the web dashboard via AJAX/fetch to keep UX and business rules identical.</li>
     </ul>
+</div>
+
+<div class="api-grid">
+    {% for section in api_sections %}
+        <div class="api-section card">
+            <div class="section-heading">
+                <span class="section-icon">{{ section.icon }}</span>
+                <div>
+                    <h2 style="margin:0;">{{ section.title }}</h2>
+                    <p class="muted" style="margin:4px 0 0;">{{ section.description }}</p>
+                </div>
+            </div>
+            <div>
+                {% for ep in section.endpoints %}
+                    <div class="endpoint-row">
+                        <div class="endpoint-head">
+                            <span class="method method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                            <span class="endpoint-label">{{ ep.label }}</span>
+                        </div>
+                        <code class="endpoint-path">{{ ep.path }}</code>
+                        <p class="muted endpoint-note">{{ ep.note }}</p>
+                        {% if ep.sample %}
+                            <pre class="code-block">{{ ep.sample }}</pre>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3 style="margin-top:0;">Web dashboard hooks</h3>
+    <p class="muted">These endpoints already power the mobile experience; wire the same calls into dashboard widgets (members list, inventory table, voucher approvals) to keep the UX consistent and reduce duplicated logic.</p>
+    <div class="tag-row">
+        <span class="tag">Pagination &amp; filters built-in</span>
+        <span class="tag">Organization-scoped</span>
+        <span class="tag">Supports file uploads (multipart)</span>
+        <span class="tag">JWT &amp; session compatible</span>
+    </div>
 </div>
 {% endblock %}

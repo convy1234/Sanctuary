@@ -42,14 +42,17 @@ INSTALLED_APPS = [
     # local apps
     "accounts",
     "church",
+    "member",
+    "inventory",
+    "accounting",
 
     # third-party
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "phonenumber_field",
+    "import_export",
     "django.contrib.humanize",
-
 
 
 ]

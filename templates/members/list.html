@@ -152,12 +152,12 @@
                             <strong>{{ family.family_name }}</strong>
                             <div class="muted">{{ family.members.count }} members</div>
                         </div>
-                        <a href="#" style="font-size:13px;">View</a>
+                        <a href="{% url 'member_list' %}?family={{ family.id }}" style="font-size:13px;">View</a>
                     </div>
                 {% endfor %}
                 {% if families.count > 5 %}
                     <div style="text-align:center; margin-top:12px;">
-                        <a href="#" class="muted">View all {{ families.count }} families →</a>
+                        <a href="{% url 'member_statistics' %}" class="muted">View all {{ families.count }} families →</a>
                     </div>
                 {% endif %}
             {% else %}
@@ -174,12 +174,15 @@
                             <strong>{{ dept.name }}</strong>
                             <div class="muted">{{ dept.members.count }} members</div>
                         </div>
-                        <span class="badge">{{ dept.leader.full_name|default:"No leader" }}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="badge">{{ dept.leader.full_name|default:"No leader" }}</span>
+                            <a href="{% url 'member_list' %}?department={{ dept.id }}" style="font-size:13px;">View</a>
+                        </div>
                     </div>
                 {% endfor %}
                 {% if departments.count > 5 %}
                     <div style="text-align:center; margin-top:12px;">
-                        <a href="#" class="muted">View all {{ departments.count }} departments →</a>
+                        <a href="{% url 'member_statistics' %}" class="muted">View all {{ departments.count }} departments →</a>
                     </div>
                 {% endif %}
             {% else %}

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from import_export.admin import ImportExportModelAdmin
 from .models import (
     Organization, SubscriptionPlan, OrganizationSubscription,
     Invitation, Member, Campus, Family, Department,
@@ -256,7 +257,7 @@ class MemberDepartmentInline(admin.TabularInline):
 
 
 @admin.register(Member)
-class MemberAdmin(admin.ModelAdmin):
+class MemberAdmin(ImportExportModelAdmin):
     """Admin interface for Member model."""
     list_display = ('full_name', 'organization', 'phone', 'email', 'status', 
                    'age_display', 'created_at')
@@ -347,7 +348,7 @@ class MemberAdmin(admin.ModelAdmin):
 
 
 @admin.register(Campus)
-class CampusAdmin(admin.ModelAdmin):
+class CampusAdmin(ImportExportModelAdmin):
     """Admin interface for Campus model."""
     list_display = ('name', 'organization', 'is_active', 'phone', 'email', 'member_count')
     list_filter = ('is_active', 'organization')
@@ -360,7 +361,7 @@ class CampusAdmin(admin.ModelAdmin):
 
 
 @admin.register(Family)
-class FamilyAdmin(admin.ModelAdmin):
+class FamilyAdmin(ImportExportModelAdmin):
     """Admin interface for Family model."""
     list_display = ('family_name', 'organization', 'family_head', 'phone', 
                    'email', 'member_count')
@@ -387,7 +388,7 @@ class FamilyAdmin(admin.ModelAdmin):
 
 
 @admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
+class DepartmentAdmin(ImportExportModelAdmin):
     """Admin interface for Department model."""
     list_display = ('name', 'organization', 'leader', 'is_active', 'member_count')
     list_filter = ('is_active', 'organization')

@@ -1,11 +1,11 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from django.views.generic import TemplateView
 
 from .views import (
     EmailTokenObtainPairView,
     InvitationAcceptAPIView,
     InvitationCreateAPIView,
+    api_docs_view,
     MeAPIView,
     login_view,
     register_view,
@@ -31,7 +31,7 @@ urlpatterns = [
     
     # Frontend pages
     path("login/", login_view, name="login"),
-    path("api/docs/", TemplateView.as_view(template_name="api_docs.html"), name="api_docs"),
+    path("api/docs/", api_docs_view, name="api_docs"),
     path("register/", register_view, name="register"),
     path("logout/", logout_view, name="logout"),
     

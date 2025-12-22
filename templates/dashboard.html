@@ -2,90 +2,672 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block head_extra %}
+<style>
+    /* Enhanced Dashboard Styles */
+    .dashboard-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 2rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        color: white;
+        border-radius: var(--radius);
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+    }
 
+    .dashboard-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    }
+
+    .dashboard-hero h1 {
+        margin: 0 0 8px;
+        font-size: 2.5rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: white;
+    }
+
+    .dashboard-hero .muted {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    .welcome-icon {
+        font-size: 3rem;
+        opacity: 0.8;
+    }
+
+    /* Stats Grid Enhancement */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+        padding: 1.75rem;
+        background: white;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary);
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 6px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--primary), var(--secondary));
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: var(--text);
+        margin: 0.5rem 0;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--primary-soft);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        font-size: 1.2rem;
+    }
+
+    .stat-trend {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 20px;
+        background: #10b98120;
+        color: #10b981;
+        margin-top: 0.5rem;
+    }
+
+    .stat-trend.down {
+        background: #ef444420;
+        color: #ef4444;
+    }
+
+    /* Quick Actions Enhancement */
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+
+    .quick-tile {
+        background: white;
+        border: 2px solid transparent;
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .quick-tile:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary);
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+
+    .quick-tile::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(to right, var(--primary), var(--secondary));
+    }
+
+    .quick-tile-icon {
+        font-size: 2.5rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+    }
+
+    .quick-tile a {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text);
+        display: block;
+        text-decoration: none;
+    }
+
+    .quick-tile .muted {
+        font-size: 0.875rem;
+        color: var(--muted);
+        margin-top: 0.5rem;
+    }
+
+    /* Activity Sections */
+    .activity-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .activity-card {
+        background: white;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+
+    .activity-header {
+        padding: 1.25rem 1.5rem;
+        background: var(--primary-soft);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .activity-header strong {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .activity-body {
+        padding: 0;
+    }
+
+    .activity-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+        transition: background-color 0.2s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .activity-item:hover {
+        background: var(--primary-soft);
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-right: 12px;
+    }
+
+    .activity-info {
+        flex: 1;
+    }
+
+    .activity-info strong {
+        display: block;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .activity-time {
+        font-size: 0.875rem;
+        color: var(--muted);
+        margin-top: 4px;
+    }
+
+    /* API Bridge Enhancement */
+    .api-bridge {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: white;
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .api-bridge::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+    }
+
+    .api-bridge-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .api-bridge-header strong {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .api-endpoint {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .api-endpoint:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(4px);
+    }
+
+    .endpoint-method {
+        display: inline-flex;
+        padding: 4px 12px;
+        background: var(--primary);
+        color: white;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-right: 12px;
+    }
+
+    .endpoint-method.get {
+        background: #10b981;
+    }
+
+    .endpoint-method.post {
+        background: #f59e0b;
+    }
+
+    .endpoint-path {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.95rem;
+        word-break: break-all;
+    }
+
+    .endpoint-desc {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.875rem;
+        margin-top: 8px;
+        padding-left: 28px;
+    }
+
+    /* Empty States */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--border);
+        margin-bottom: 1rem;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .dashboard-hero {
+            flex-direction: column;
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .dashboard-hero h1 {
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .activity-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .quick-actions-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .api-bridge {
+            padding: 1.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .quick-actions-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 
+<!-- HERO / WELCOME -->
+<div class="dashboard-hero">
+    <div>
+        <p class="muted">
+            <i class="bi bi-hand-index-thumb"></i> Welcome back, {{ user.get_full_name|default:user.email }}
+        </p>
+        <h1>
+            {{ user.organization.name|default:"Sanctuary" }} Dashboard
+        </h1>
+        <p class="muted" style="margin-top: 0.5rem; font-size: 1rem;">
+            Manage your organization, members, and resources in one place
+        </p>
+    </div>
+    <div class="welcome-icon">
+        <i class="bi bi-house-heart"></i>
+    </div>
+</div>
 
-    <div class="main">
-        <div class="section-card" style="margin-bottom:12px;">
-            <p class="muted" style="margin:0;">Welcome back, {{ user.organization.name|default:user.email }}</p>
-            <h1 style="margin:6px 0 0;">{{ user.organization.name|default:"Dashboard" }} Dashboard</h1>
+<!-- STATS -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">
+            <div class="stat-icon">
+                <i class="bi bi-people"></i>
+            </div>
+            Total Users
         </div>
-
-        <div class="content-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Members</div>
-                <div class="stat-value">{{ analytics.my_org_member_count|default:0 }}</div>
-                <span class="badge">Org scoped</span>
+        <div class="stat-value">{{ analytics.my_org_user_count|default:0 }}</div>
+        <span class="badge">Organization</span>
+        
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">
+            <div class="stat-icon">
+                <i class="bi bi-people"></i>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Active Invites</div>
-                <div class="stat-value">{{ analytics.my_org_pending_invites|default:0 }}</div>
-                <span class="badge">Pending</span>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Payments</div>
-                <div class="stat-value">0</div>
-                <span class="badge">No payments yet</span>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Quick Actions</div>
-                <a href="{% url 'send_invite' user.organization.id %}">+ Invite Member</a>
-            </div>
+            Total Members
         </div>
-
-        <div class="section-card" style="margin-top:14px;">
-            <h3 style="margin-top:0;">Quick Actions</h3>
-            <div class="quick-grid">
-                <div class="quick-tile"><a href="#">Create Request</a></div>
-                <div class="quick-tile"><a href="{% url 'send_invite' user.organization.id %}">Invite Member</a></div>
-                <div class="quick-tile"><a href="#">Book Room</a></div>
-                <div class="quick-tile"><a href="#">Add Inventory</a></div>
-            </div>
-        </div>
-
-        <div class="content-grid" style="margin-top:14px;">
-            <div class="section-card">
-                <div class="list-row">
-                    <strong>Recent Members</strong>
-                    <a href="{% url 'organization_detail' user.organization.slug %}">View All</a>
-                </div>
-                {% if recent_users %}
-                    {% for u in recent_users %}
-                        <div class="list-row">
-                            <div>
-                                <div>{{ u.get_full_name|default:u.email }}</div>
-                                <div class="muted">Joined {{ u.date_joined|date:"M d" }}</div>
-                            </div>
-                            <span class="badge">Member</span>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="muted">No members yet.</p>
-                {% endif %}
-            </div>
-
-            <div class="section-card">
-                <div class="list-row">
-                    <strong>Recent Invites</strong>
-                    <span class="badge">{{ analytics.my_org_pending_invites|default:0 }} pending</span>
-                </div>
-                {% if recent_invites %}
-                    {% for inv in recent_invites %}
-                        <div class="list-row">
-                            <div>
-                                <div>{{ inv.email }}</div>
-                                <div class="muted">Sent {{ inv.created_at|date:"M d, H:i" }}</div>
-                            </div>
-                            <span class="badge">{% if inv.accepted_at %}Accepted{% else %}Pending{% endif %}</span>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="muted">No invites yet.</p>
-                {% endif %}
-            </div>
+        <div class="stat-value">{{ analytics.my_org_member_count|default:0 }}</div>
+        <span class="badge">Organization</span>
+        <div class="stat-trend">
+            <i class="bi bi-arrow-up"></i> 12% growth this month
         </div>
     </div>
+
+    <div class="stat-card">
+        <div class="stat-label">
+            <div class="stat-icon">
+                <i class="bi bi-envelope"></i>
+            </div>
+            Active Invites
+        </div>
+        <div class="stat-value">{{ analytics.my_org_pending_invites|default:0 }}</div>
+        <span class="badge badge-secondary">Pending</span>
+        {% if analytics.my_org_pending_invites > 0 %}
+        <div class="stat-trend">
+            <i class="bi bi-clock"></i> Awaiting response
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">
+            <div class="stat-icon">
+                <i class="bi bi-credit-card"></i>
+            </div>
+            Total Payments
+        </div>
+        <div class="stat-value">$0</div>
+        <span class="badge badge-secondary">Not enabled</span>
+        <a href="{% url 'voucher_dashboard' %}" class="stat-trend" style="text-decoration: none;">
+            <i class="bi bi-plus-circle"></i> Open finance dashboard
+        </a>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-label">
+            <div class="stat-icon">
+                <i class="bi bi-lightning"></i>
+            </div>
+            Quick Action
+        </div>
+        <div style="margin-top: 1rem;">
+            <a href="{% url 'send_invite' user.organization.id %}" class="pill" style="display: inline-flex; align-items: center; gap: 8px;">
+                <i class="bi bi-person-plus"></i> Invite User
+            </a>
+        </div>
+        <div class="muted" style="margin-top: 0.75rem; font-size: 0.875rem;">
+            Expand your organization
+        </div>
+    </div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div class="section-card">
+    <div class="section-title">
+        <strong>Quick Actions</strong>
+        <span class="muted">Common tasks for {{ user.organization.name|default:"your organization" }}</span>
+    </div>
+
+    <div class="quick-actions-grid">
+        <div class="quick-tile">
+            <div class="quick-tile-icon">
+                <i class="bi bi-plus-circle"></i>
+            </div>
+            <a href="{% url 'voucher_create' %}">Create Request</a>
+            <p class="muted">Submit assistance requests</p>
+        </div>
+        
+        <div class="quick-tile">
+            <div class="quick-tile-icon">
+                <i class="bi bi-person-plus"></i>
+            </div>
+            <a href="{% url 'send_invite' user.organization.id %}">Invite Member</a>
+            <p class="muted">Add new organization members</p>
+        </div>
+        
+        <div class="quick-tile">
+            <div class="quick-tile-icon">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <a href="{% url 'inventory_checkout_create' %}">Book Room</a>
+            <p class="muted">Reserve equipment or rooms</p>
+        </div>
+        
+        <div class="quick-tile">
+            <div class="quick-tile-icon">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <a href="{% url 'inventory_dashboard' %}">Manage Inventory</a>
+            <p class="muted">Track and organize resources</p>
+        </div>
+    </div>
+</div>
+
+<!-- RECENT ACTIVITY -->
+<div class="activity-grid">
+    <!-- RECENT MEMBERS -->
+    <div class="activity-card">
+        <div class="activity-header">
+            <strong>
+                <i class="bi bi-person-badge"></i> Recent Members
+            </strong>
+            <a href="{% url 'organization_detail' user.organization.slug %}" class="btn" style="font-size: 0.875rem;">
+                View All <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="activity-body">
+            {% if recent_users %}
+                {% for u in recent_users %}
+                <div class="activity-item">
+                    <div style="display: flex; align-items: center;">
+                        <div class="user-avatar">
+                            {{ u.get_full_name|default:u.email|slice:":2"|upper }}
+                        </div>
+                        <div class="activity-info">
+                            <strong>{{ u.get_full_name|default:u.email }}</strong>
+                            <div class="activity-time">
+                                Joined {{ u.date_joined|date:"F d, Y" }}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="badge">Member</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-people"></i>
+                    <p>No members yet</p>
+                    <a href="{% url 'send_invite' user.organization.id %}" class="btn" style="margin-top: 1rem;">
+                        Invite Your First Member
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RECENT INVITES -->
+    <div class="activity-card">
+        <div class="activity-header">
+            <strong>
+                <i class="bi bi-envelope-paper"></i> Recent Invites
+            </strong>
+            <span class="badge badge-success">{{ analytics.my_org_pending_invites|default:0 }} pending</span>
+        </div>
+        <div class="activity-body">
+            {% if recent_invites %}
+                {% for inv in recent_invites %}
+                <div class="activity-item">
+                    <div class="activity-info">
+                        <strong>{{ inv.email }}</strong>
+                        <div class="activity-time">
+                            Sent {{ inv.created_at|date:"M d, H:i" }}
+                            {% if inv.accepted_at %}
+                                • Accepted {{ inv.accepted_at|date:"M d" }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span class="badge {% if inv.accepted_at %}badge-success{% else %}badge-secondary{% endif %}">
+                        {% if inv.accepted_at %}Accepted{% else %}Pending{% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-envelope"></i>
+                    <p>No invites sent yet</p>
+                    <a href="{% url 'send_invite' user.organization.id %}" class="btn" style="margin-top: 1rem;">
+                        Send First Invite
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- API BRIDGE -->
+<div class="api-bridge">
+    <div class="api-bridge-header">
+        <strong>
+            <i class="bi bi-plug"></i> Mobile API Bridge
+        </strong>
+        <a href="{% url 'api_docs' %}" class="pill" style="background: rgba(255,255,255,0.1); color: white;">
+            <i class="bi bi-code-slash"></i> View Full API Docs
+        </a>
+    </div>
+
+    <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 1.5rem;">
+        These endpoints power both the dashboard and mobile application. All requests require authentication.
+    </p>
+
+    <div class="api-endpoint">
+        <span class="endpoint-method get">GET</span>
+        <span class="endpoint-path">/church/api/members/?search=</span>
+        <div class="endpoint-desc">
+            Retrieve organization members with optional search filtering
+        </div>
+    </div>
+
+    <div class="api-endpoint">
+        <span class="endpoint-method get">GET</span>
+        <span class="endpoint-path">/church/api/vouchers/</span>
+        <div class="endpoint-desc">
+            Access voucher requests and approval workflows
+        </div>
+    </div>
+
+    <div class="api-endpoint">
+        <span class="endpoint-method get">GET</span>
+        <span class="endpoint-path">/church/api/inventory/items/</span>
+        <div class="endpoint-desc">
+            List inventory items with stock levels and categories
+        </div>
+    </div>
+</div>
+
 {% endblock %}

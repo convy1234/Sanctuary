@@ -217,7 +217,7 @@
                 </a>
                 <a href="{% url 'voucher_list' %}?status=submitted" 
                    style="display:block; padding:12px; background:#fef3c7; border-radius:8px; text-align:center;">
-                    ⏳ Review Pending ({{ stats.submitted }})
+                    � Review Pending ({{ stats.submitted }})
                 </a>
                 <a href="{% url 'voucher_list' %}?status=approved" 
                    style="display:block; padding:12px; background:#d1fae5; border-radius:8px; text-align:center;">
@@ -225,7 +225,7 @@
                 </a>
                 <a href="{% url 'voucher_list' %}?status=overdue" 
                    style="display:block; padding:12px; background:#fee2e2; border-radius:8px; text-align:center;">
-                    ⚠️ Handle Overdue ({{ stats.overdue }})
+                    ⚠� Handle Overdue ({{ stats.overdue }})
                 </a>
             </div>
         </div>
@@ -250,7 +250,7 @@
                 </div>
                 {% if monthly_summary.count > 6 %}
                 <div style="text-align:center; margin-top:12px;">
-                    <a href="#" class="muted">View all {{ monthly_summary.count }} months →</a>
+                    <a href="{% url 'voucher_list' %}" class="muted">View all {{ monthly_summary.count }} months →</a>
                 </div>
                 {% endif %}
             {% else %}

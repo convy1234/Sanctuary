@@ -11,6 +11,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('church/', include('church.urls')),
+    path('member/', include('member.urls')),
+    path('inventory/', include('inventory.urls')),
+    path('accounting/', include('accounting.urls')),
+    
 
 
     path('', accounts.dashboard_view, name='dashboard'),
