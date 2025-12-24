@@ -1,9 +1,13 @@
 import uuid
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from accounts.models import User
 from task.models import Task
+
+channel_layer = get_channel_layer()
 
 
 class Channel(models.Model):
@@ -231,6 +235,57 @@ class Message(models.Model):
                 membership.last_read_at = timezone.now()
                 membership.save(update_fields=['last_read_at'])
     
+    def serialize_for_socket(self):
+        """Serialize message for websocket delivery"""
+        sender_name = self.sender.email.split('@')[0]
+        sender_avatar = None
+        
+        try:
+            member_profile = self.sender.member_profile
+            if member_profile:
+                sender_name = member_profile.full_name
+                if member_profile.photo:
+                    sender_avatar = f"/media/{member_profile.photo.name}"
+        except AttributeError:
+            pass
+        
+        return {
+            'id': str(self.id),
+            'content': self.content,
+            'sender': {
+                'id': str(self.sender.uid),
+                'name': sender_name,
+                'avatar': sender_avatar,
+            },
+            'created_at': self.created_at.isoformat(),
+            'created_at_timestamp': int(self.created_at.timestamp() * 1000),
+            'reply_to': str(self.reply_to.id) if self.reply_to else None,
+        }
+    
+    def broadcast_to_thread(self):
+        """Push this message to connected websocket clients"""
+        if not channel_layer:
+            return
+        
+        if self.channel_id:
+            thread_type = 'channel'
+            thread_id = str(self.channel_id)
+        elif self.direct_message_id:
+            thread_type = 'dm'
+            thread_id = str(self.direct_message_id)
+        else:
+            return
+        
+        async_to_sync(channel_layer.group_send)(
+            f"{thread_type}_{thread_id}",
+            {
+                'type': 'chat_message',
+                'message': self.serialize_for_socket(),
+                'thread_type': thread_type,
+                'thread_id': thread_id,
+            }
+        )
+    
     def convert_to_task(self, **kwargs):
         """
         Convert this message into a task
@@ -260,6 +315,9 @@ class Message(models.Model):
         labels = kwargs.get('labels', [])
         department = kwargs.get('department')
         is_private = kwargs.get('is_private', False)
+        parent_task = kwargs.get('parent_task')
+        link_channel = kwargs.get('link_channel', True)
+        description_override = kwargs.get('description')
         
         # Generate title from content if not provided
         if not title:
@@ -271,7 +329,7 @@ class Message(models.Model):
         task = Task.objects.create(
             organization=self.sender.organization,
             title=title,
-            description=f"Task created from chat message:\n\n**Original Message:**\n{self.content}\n\n**Context:** {'Channel: ' + self.channel.name if self.channel else 'Direct Message'}",
+            description=description_override or self.content,
             created_by=self.sender,
             assigned_to=assigned_to,
             department=department,
@@ -279,8 +337,9 @@ class Message(models.Model):
             priority=priority,
             due_date=due_date,
             is_private=is_private,
+            parent_task=parent_task,
             # Link to chat context
-            related_channel=self.channel,
+            related_channel=self.channel if link_channel else None,
             related_dm=self.direct_message
         )
         
@@ -301,7 +360,7 @@ class Message(models.Model):
         return task
     
     def _create_task_notification_message(self, task):
-        """Create a system message about task creation"""
+        """Reuse this message as the task-created system message (no duplicate entry)"""
         from task.models import TaskPriority
         
         priority_labels = {
@@ -323,15 +382,14 @@ class Message(models.Model):
         if task.due_date:
             message_content += f"**Due:** {task.due_date.strftime('%b %d, %Y')}\n"
         
-        # Create the notification message
-        Message.objects.create(
-            channel=self.channel,
-            direct_message=self.direct_message,
-            sender=self.sender,
-            content=message_content,
-            message_type='task_created',
-            related_task=task
-        )
+        # Reuse this message instead of creating a second one
+        self.content = message_content
+        self.message_type = 'task_created'
+        self.related_task = task
+        self.save(update_fields=['content', 'message_type', 'related_task'])
+        
+        # Push the updated message to websocket clients
+        self.broadcast_to_thread()
     
     def _send_task_notifications(self, task, assigned_to):
         """Send notifications to relevant users"""

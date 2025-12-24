@@ -27,6 +27,7 @@ from .models import (
 )
 
 User = get_user_model()
+channel_layer = get_channel_layer()
 
 
 def get_user_organization(user):
@@ -69,6 +70,58 @@ def get_user_role(user):
         return "Volunteer"
     else:
         return "Member"
+
+
+def _serialize_chat_message(message):
+    """Match chat socket payload shape"""
+    sender_name = display_name_for(message.sender)
+    sender_avatar = None
+    try:
+        if hasattr(message.sender, 'member_profile') and message.sender.member_profile.photo:
+            sender_avatar = message.sender.member_profile.photo.url
+    except AttributeError:
+        pass
+    return {
+        'id': str(message.id),
+        'content': message.content,
+        'sender': {
+            'id': str(message.sender.uid),
+            'name': sender_name,
+            'avatar': sender_avatar,
+        },
+        'created_at': message.created_at.isoformat(),
+        'created_at_timestamp': int(message.created_at.timestamp() * 1000),
+        'reply_to': str(message.reply_to.id) if message.reply_to else None,
+    }
+
+
+def _broadcast_chat_message(message):
+    """Send a chat message to websocket subscribers if possible."""
+    if not channel_layer:
+        return
+    
+    if message.channel_id:
+        thread_type = 'channel'
+        thread_id = str(message.channel_id)
+    elif message.direct_message_id:
+        thread_type = 'dm'
+        thread_id = str(message.direct_message_id)
+    else:
+        return
+    
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f"{thread_type}_{thread_id}",
+            {
+                'type': 'chat_message',
+                'message': _serialize_chat_message(message),
+                'thread_type': thread_type,
+                'thread_id': thread_id,
+            }
+        )
+    except Exception:
+        # Avoid failing the request if websocket broadcast fails
+        pass
 
 
 @api_view(['GET'])
@@ -577,7 +630,7 @@ def task_create_api_view(request):
             if due_date:
                 system_message_content += f"\n**Due:** {due_date.strftime('%b %d, %Y')}"
             
-            ChatMessage.objects.create(
+            system_message = ChatMessage.objects.create(
                 channel=origin_message.channel if origin_message.channel else None,
                 direct_message=origin_message.direct_message if origin_message.direct_message else None,
                 sender=user,
@@ -585,6 +638,7 @@ def task_create_api_view(request):
                 message_type='task_created',
                 related_task=task
             )
+            _broadcast_chat_message(system_message)
         
         # Create notification for assigned user
         if assigned_to and assigned_to != user:
@@ -1530,6 +1584,8 @@ def convert_message_to_task_api_view(request):
     priority_str = request.data.get('priority')
     department_id = request.data.get('department')
     label_ids = request.data.get('labels', [])
+    parent_task_id = request.data.get('parent_task')
+    link_channel = str(request.data.get('link_channel', 'true')).lower() != 'false'
     
     # Parse assigned_to
     assigned_to = None
@@ -1572,6 +1628,17 @@ def convert_message_to_task_api_view(request):
         elif priority_str.lower() == 'critical':
             priority = TaskPriority.CRITICAL
     
+    # Parse parent task
+    parent_task = None
+    if parent_task_id:
+        try:
+            parent_task = Task.objects.get(id=parent_task_id, organization=user.organization)
+        except Task.DoesNotExist:
+            return Response(
+                {'success': False, 'error': 'Parent task not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
     # Parse department
     department = None
     if department_id:
@@ -1592,8 +1659,19 @@ def convert_message_to_task_api_view(request):
         if len(message.content) > 100:
             title += "..."
     
+    # Default assignee to DM recipient if not provided
+    if not assigned_to and message.direct_message:
+        assigned_to = message.direct_message.participants.exclude(uid=user.uid).first()
+    
+    # Default department from assignee's first department
+    if not department and assigned_to and hasattr(assigned_to, 'member_profile'):
+        first_dept = assigned_to.member_profile.departments.first() if hasattr(assigned_to.member_profile, 'departments') else None
+        if first_dept:
+            department = first_dept
+    
     # Create task from message
     try:
+        used_model_helper = False
         # Use the method on Message model if it exists
         if hasattr(message, 'convert_to_task'):
             task = message.convert_to_task(
@@ -1601,22 +1679,27 @@ def convert_message_to_task_api_view(request):
                 assigned_to=assigned_to,
                 due_date=due_date,
                 priority=priority,
-                department=department
+                department=department,
+                parent_task=parent_task,
+                link_channel=link_channel,
+                description=message.content
             )
+            used_model_helper = True
         else:
             # Fallback: Create task manually
             task = Task.objects.create(
                 organization=user.organization,
                 title=title,
-                description=f"Task created from chat message:\n\n**Original Message:**\n{message.content}\n\n**Context:** {'Channel: ' + message.channel.name if message.channel else 'Direct Message'}",
+                description=message.content,
                 created_by=user,
                 assigned_to=assigned_to,
                 department=department,
+                parent_task=parent_task,
                 origin_message=message,
                 priority=priority,
                 due_date=due_date,
                 # Link to chat context
-                related_channel=message.channel,
+                related_channel=message.channel if link_channel else None,
                 related_dm=message.direct_message,
             )
         
@@ -1625,24 +1708,22 @@ def convert_message_to_task_api_view(request):
             labels = TaskLabel.objects.filter(id__in=label_ids, organization=user.organization)
             task.labels.set(labels)
         
-        # Create system message in chat
-        system_message_content = f"✅ **Task Created**\n**Title:** {title}\n**Priority:** {task.get_priority_display()}"
-        
-        if assigned_to:
-            assignee_name = display_name_for(assigned_to)
-            system_message_content += f"\n**Assigned to:** {assignee_name}"
-        
-        if due_date:
-            system_message_content += f"\n**Due:** {due_date.strftime('%b %d, %Y')}"
-        
-        ChatMessage.objects.create(
-            channel=message.channel if message.channel else None,
-            direct_message=message.direct_message if message.direct_message else None,
-            sender=user,
-            content=system_message_content,
-            message_type='task_created',
-            related_task=task
-        )
+        # Reuse the original chat message instead of adding a duplicate entry (only when fallback used)
+        if not used_model_helper:
+            system_message_content = f"✅ **Task Created**\n**Title:** {title}\n**Priority:** {task.get_priority_display()}"
+            
+            if assigned_to:
+                assignee_name = display_name_for(assigned_to)
+                system_message_content += f"\n**Assigned to:** {assignee_name}"
+            
+            if due_date:
+                system_message_content += f"\n**Due:** {due_date.strftime('%b %d, %Y')}"
+            
+            message.content = system_message_content
+            message.message_type = 'task_created'
+            message.related_task = task
+            message.save(update_fields=['content', 'message_type', 'related_task'])
+            _broadcast_chat_message(message)
         
         # Get task data for response
         task_data = _format_task_for_response(task, request)
@@ -2204,20 +2285,98 @@ def task_widget_create_view(request):
             return JsonResponse({"error": "No organization assigned"}, status=403)
         
         title = request.POST.get("title", "").strip()
-        if not title:
+        description = request.POST.get("description", "").strip()
+        priority_raw = request.POST.get("priority", TaskPriority.NORMAL)
+        is_private = request.POST.get("is_private", "false").lower() == "true"
+        origin_message_id = request.POST.get("origin_message_id")
+        related_thread_type = request.POST.get("related_thread_type")
+        related_thread_id = request.POST.get("related_thread_id")
+        due_date_str = request.POST.get("due_date")
+        
+        # Allow title to be inferred when converting from a chat message
+        if not title and not origin_message_id and not related_thread_id:
             return JsonResponse({"error": "Title is required"}, status=400)
+        
+        try:
+            priority = int(priority_raw)
+        except (TypeError, ValueError):
+            priority = TaskPriority.NORMAL
+        
+        # Parse due date (accept date-only or ISO datetime)
+        due_date = None
+        if due_date_str:
+            try:
+                due_date = timezone.make_aware(datetime.strptime(due_date_str, "%Y-%m-%d"))
+            except Exception:
+                try:
+                    due_date = timezone.datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+                    if timezone.is_naive(due_date):
+                        due_date = timezone.make_aware(due_date)
+                except Exception:
+                    pass
+        
+        origin_message = None
+        related_channel = None
+        related_dm = None
+        
+        if origin_message_id:
+            try:
+                origin_message = ChatMessage.objects.get(id=origin_message_id)
+            except ChatMessage.DoesNotExist:
+                return JsonResponse({"error": "Message not found"}, status=404)
+            
+            if origin_message.channel:
+                if not ChannelMembership.objects.filter(channel=origin_message.channel, user=request.user).exists():
+                    return JsonResponse({"error": "You do not have access to this message"}, status=403)
+                related_channel = origin_message.channel
+            elif origin_message.direct_message:
+                if not origin_message.direct_message.participants.filter(uid=request.user.uid).exists():
+                    return JsonResponse({"error": "You are not a participant in this conversation"}, status=403)
+                related_dm = origin_message.direct_message
+            
+            if not title:
+                title = origin_message.content[:100] + ("..." if len(origin_message.content) > 100 else "")
+                if not description:
+                    description = origin_message.content
+        
+        # Link to a chat thread even without a specific origin message
+        elif related_thread_type and related_thread_id:
+            if related_thread_type == "channel":
+                try:
+                    related_channel = Channel.objects.get(id=related_thread_id, organization=org)
+                except Channel.DoesNotExist:
+                    return JsonResponse({"error": "Channel not found"}, status=404)
+                if not related_channel.is_public and not ChannelMembership.objects.filter(channel=related_channel, user=request.user).exists():
+                    return JsonResponse({"error": "Not a member of this channel"}, status=403)
+            elif related_thread_type == "dm":
+                try:
+                    related_dm = DirectMessage.objects.get(id=related_thread_id, organization=org)
+                except DirectMessage.DoesNotExist:
+                    return JsonResponse({"error": "Conversation not found"}, status=404)
+                if not related_dm.participants.filter(uid=request.user.uid).exists():
+                    return JsonResponse({"error": "You are not a participant in this conversation"}, status=403)
+        
+        if not title and (related_channel or related_dm):
+            title = related_channel.name if related_channel else "Direct message task"
+            if related_channel:
+                title = f"Task for #{related_channel.name}"
         
         # Create task
         task = Task.objects.create(
             organization=org,
             title=title,
-            description=request.POST.get("description", "").strip(),
-            priority=int(request.POST.get("priority", TaskPriority.NORMAL)),
+            description=description,
+            priority=priority,
             created_by=request.user,
-            is_private=request.POST.get("is_private", "false").lower() == "true",
+            is_private=is_private,
+            origin_message=origin_message,
+            related_channel=related_channel,
+            related_dm=related_dm,
+            due_date=due_date,
         )
         
         # Handle assignment
+        assigned_to = None
         assigned_to_id = request.POST.get("assigned_to")
         if assigned_to_id:
             try:
@@ -2237,9 +2396,218 @@ def task_widget_create_view(request):
             except Department.DoesNotExist:
                 pass
         
+        # Let chat participants know when we are linked to a thread
+        if related_channel or related_dm:
+            summary = f"✅ Task Created\n**Title:** {task.title}\n**Priority:** {task.get_priority_display()}"
+            if assigned_to:
+                summary += f"\n**Assigned to:** {display_name_for(assigned_to)}"
+            if due_date:
+                summary += f"\n**Due:** {due_date.strftime('%b %d, %Y')}"
+            system_message = ChatMessage.objects.create(
+                channel=related_channel,
+                direct_message=related_dm,
+                sender=request.user,
+                content=summary,
+                message_type='task_created',
+                related_task=task
+            )
+            _broadcast_chat_message(system_message)
+        
         return JsonResponse({
             "success": True,
             "task_id": str(task.id),
             "title": task.title,
             "message": "Task created successfully",
         })
+
+
+@login_required
+def task_widget_parent_options_view(request):
+    """Return recent tasks for parent selection (session auth)."""
+    org = getattr(request.user, "organization", None)
+    if not org:
+        return JsonResponse({"error": "No organization assigned"}, status=403)
+    
+    tasks = Task.objects.filter(organization=org).order_by('-updated_at')[:20]
+    
+    def _display_name(task):
+        prefix = task.get_priority_display()
+        title = task.title
+        return f"[{prefix}] {title}"
+    
+    data = [
+        {"id": str(t.id), "title": _display_name(t)}
+        for t in tasks
+    ]
+    return JsonResponse({"tasks": data})
+
+
+@login_required
+@require_http_methods(["POST"])
+def task_convert_message_widget_view(request):
+    """
+    Session-auth version of convert_message_to_task_api_view for web chat widget.
+    """
+    org = getattr(request.user, "organization", None)
+    if not org:
+        return JsonResponse({"error": "No organization assigned"}, status=403)
+    
+    message_id = request.POST.get("message_id")
+    if not message_id:
+        return JsonResponse({"error": "Message ID is required"}, status=400)
+    
+    try:
+        message = ChatMessage.objects.get(id=message_id)
+    except ChatMessage.DoesNotExist:
+        return JsonResponse({"error": "Message not found"}, status=404)
+    
+    # Access checks
+    if message.channel:
+        if not ChannelMembership.objects.filter(channel=message.channel, user=request.user).exists():
+            return JsonResponse({"error": "You do not have access to this message"}, status=403)
+    elif message.direct_message:
+        if not message.direct_message.participants.filter(uid=request.user.uid).exists():
+            return JsonResponse({"error": "You are not a participant in this conversation"}, status=403)
+    
+    # Already converted? Return success so UI can close cleanly.
+    if hasattr(message, "converted_to_task") and message.converted_to_task:
+        task = message.converted_to_task
+        return JsonResponse({
+            "success": True,
+            "task_id": str(task.id),
+            "title": task.title,
+            "already_converted": True,
+        })
+    
+    # Parse inputs
+    title = (request.POST.get("title") or "").strip()
+    due_date_str = request.POST.get("due_date")
+    parent_task_id = request.POST.get("parent_task")
+    link_channel = str(request.POST.get("link_channel", "true")).lower() != "false"
+    
+    # Default assignee is DM recipient if not provided
+    assigned_to = None
+    if message.direct_message:
+        assigned_to = message.direct_message.participants.exclude(uid=request.user.uid).first()
+    
+    # Default department from assignee
+    department = None
+    if assigned_to and hasattr(assigned_to, "member_profile"):
+        dept = getattr(assigned_to.member_profile, "departments", None)
+        if dept:
+            department = dept.first()
+    
+    # Parent task
+    parent_task = None
+    if parent_task_id:
+        try:
+            parent_task = Task.objects.get(id=parent_task_id, organization=org)
+        except Task.DoesNotExist:
+            # Fallback: try by title match
+            parent_task = Task.objects.filter(organization=org, title__icontains=parent_task_id).order_by('-updated_at').first()
+    
+    
+    # Title fallback
+    if not title:
+        title = message.content[:100] + ("..." if len(message.content) > 100 else "")
+    
+    # Due date parsing
+    due_date = None
+    if due_date_str:
+        try:
+            due_date = timezone.datetime.fromisoformat(due_date_str)
+            if timezone.is_naive(due_date):
+                due_date = timezone.make_aware(due_date)
+        except Exception:
+            pass
+    
+    try:
+        if hasattr(message, "convert_to_task"):
+            task = message.convert_to_task(
+                title=title,
+                assigned_to=assigned_to,
+                due_date=due_date,
+                priority=TaskPriority.NORMAL,
+                department=department,
+                parent_task=parent_task,
+                link_channel=link_channel,
+                description=message.content,
+            )
+        else:
+            task = Task.objects.create(
+                organization=org,
+                title=title,
+                description=message.content,
+                created_by=request.user,
+                assigned_to=assigned_to,
+                department=department,
+                parent_task=parent_task,
+                origin_message=message,
+                priority=TaskPriority.NORMAL,
+                due_date=due_date,
+                related_channel=message.channel if link_channel else None,
+                related_dm=message.direct_message,
+            )
+            # update message for fallback path
+            message.content = f"✅ **Task Created**\n**Title:** {title}\n**Priority:** {task.get_priority_display()}"
+            if assigned_to:
+                message.content += f"\n**Assigned to:** {display_name_for(assigned_to)}"
+            if due_date:
+                message.content += f"\n**Due:** {due_date.strftime('%b %d, %Y')}"
+            message.message_type = 'task_created'
+            message.related_task = task
+            message.converted_to_task = task
+            message.save(update_fields=["content", "message_type", "related_task", "converted_to_task"])
+            _broadcast_chat_message(message)
+        
+        return JsonResponse({
+            "success": True,
+            "task_id": str(task.id),
+            "title": task.title,
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required
+def task_role_board_view(request):
+    """
+    Manage tasks grouped by role (pastor, admin, HOD, worker, volunteer).
+    """
+    org = getattr(request.user, "organization", None)
+    if not org:
+        return HttpResponseForbidden("No organization assigned")
+
+    tasks_qs = Task.objects.filter(organization=org).select_related("assigned_to", "created_by")
+
+    # Respect privacy for non-privileged users
+    if not (request.user.is_admin or request.user.is_pastor or request.user.is_owner):
+        tasks_qs = tasks_qs.filter(
+            Q(is_private=False) |
+            Q(created_by=request.user) |
+            Q(assigned_to=request.user)
+        )
+
+    role_filters = [
+        ("Head of Units / HOD", Q(assigned_to__is_hod=True)),
+        ("Pastors", Q(assigned_to__is_pastor=True)),
+        ("Admins", Q(assigned_to__is_admin=True)),
+        ("Workers", Q(assigned_to__is_worker=True)),
+        ("Volunteers", Q(assigned_to__is_volunteer=True)),
+    ]
+
+    role_blocks = []
+    for title, role_q in role_filters:
+        role_tasks = tasks_qs.filter(role_q).order_by("-priority", "due_date")[:12]
+        role_blocks.append({
+            "title": title,
+            "count": role_tasks.count(),
+            "tasks": role_tasks,
+        })
+
+    unassigned = tasks_qs.filter(assigned_to__isnull=True).order_by("-priority", "due_date")[:12]
+
+    return render(request, "task/role_board.html", {
+        "role_blocks": role_blocks,
+        "unassigned": unassigned,
+    })

@@ -25,4 +25,5 @@ urlpatterns = [
     path('widget/dm/start/', views.chat_widget_start_dm_view, name='chat_widget_start_dm'),
     path('widget/channel/create/', views.chat_widget_create_channel_view, name='chat_widget_create_channel'),
     path('widget/channel/join/', views.chat_widget_join_channel_view, name='chat_widget_join_channel'),
+    path('widget/channel/add-member/', views.chat_widget_add_member_view, name='chat_widget_add_member'),
 ]

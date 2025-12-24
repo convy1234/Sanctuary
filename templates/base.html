@@ -604,6 +604,9 @@
                     <a href="{% url 'inventory_checkout_create' %}">
                         <i class="bi bi-door-closed"></i> Room Booking
                     </a>
+                    <a class="{% if 'task_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'task_role_board' %}">
+                        <i class="bi bi-list-check"></i> Tasks
+                    </a>
                     <a class="{% if request.resolver_match.url_name == 'chat_page' %}active{% endif %}" href="{% url 'chat_page' %}">
                         <i class="bi bi-chat-dots"></i> Chat
                     </a>
@@ -621,28 +624,179 @@
             </div>
         </div>
 </main>
+
 {% if request.user.is_authenticated %}
-<button class="pill chat-toggle" id="chatToggleBtn">Chat</button>
+<style>
+    /* Chat toggle */
+.chat-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 90;
+}
+
+/* Panel */
+.chat-panel {
+    position: fixed;
+    top: 70px;
+    right: 0;
+    width: 420px;
+    max-width: 92vw;
+    height: calc(100vh - 90px);
+    background: #fff;
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 32px rgba(15,23,42,.15);
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    z-index: 80;
+}
+.chat-panel.hidden { display: none; }
+
+/* List */
+.chat-list {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+}
+.chat-list h4 {
+    padding: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.chat-list-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.chat-list-item:hover {
+    background: #f1f5f9;
+}
+.chat-list-item.active {
+    background: #e8f1ff;
+    font-weight: 600;
+}
+
+/* Thread */
+.chat-thread {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.chat-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    background: #fff;
+}
+
+/* Messages */
+.chat-messages {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    background: #f8fafc;
+}
+.chat-empty {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.chat-message {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(15,23,42,.06);
+}
+.chat-message.me {
+    margin-left: auto;
+    background: #0f4c81;
+    color: #fff;
+}
+.chat-meta {
+    font-size: 11px;
+    opacity: .75;
+    margin-bottom: 4px;
+}
+
+/* Input */
+.chat-input {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    background: #fff;
+}
+.chat-input input {
+    flex: 1;
+    padding: .6rem .75rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+.chat-input input:disabled {
+    background: #f1f5f9;
+}
+.chat-input button:disabled {
+    opacity: .5;
+}
+
+/* Mobile */
+@media (max-width: 960px) {
+    .chat-panel {
+        width: 100%;
+        grid-template-columns: 1fr;
+    }
+    .chat-list {
+        display: none;
+    }
+}
+
+</style>
+<button class="pill chat-toggle" id="chatToggleBtn">
+    <i class="bi bi-chat-dots"></i> Chat
+</button>
+
 <div class="chat-panel hidden" id="chatPanel">
+    <!-- LEFT: LIST -->
     <div class="chat-list">
         <h4>Channels</h4>
         <div id="chatChannels"></div>
-        <h4 style="margin-top:6px;">Direct</h4>
+
+        <h4 style="margin-top:10px;">Direct</h4>
         <div id="chatDMs"></div>
     </div>
+
+    <!-- RIGHT: THREAD -->
     <div class="chat-thread">
-        <div class="chat-header" id="chatThreadTitle">Select a chat</div>
-        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-header" id="chatThreadTitle">
+            💬 Select a conversation
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <p class="chat-empty">Choose a chat to start messaging</p>
+        </div>
+
+        <div class="chat-input">
+            <input
+                type="text"
+                id="chatInput"
+                placeholder="Type a message…"
+                autocomplete="off"
+                disabled
+            />
+            <button id="chatSendBtn" disabled>
+                Send
+            </button>
+        </div>
     </div>
-    <div class="chat-input">
-        <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" />
-        <button id="chatSendBtn">Send</button>
-    </div>
+
     <input type="hidden" id="chatThreadId" />
     <input type="hidden" id="chatThreadType" />
 </div>
+
 <script>
-(function() {
+(function () {
     const toggleBtn = document.getElementById('chatToggleBtn');
     const panel = document.getElementById('chatPanel');
     const channelsEl = document.getElementById('chatChannels');
@@ -653,39 +807,59 @@
     const inputEl = document.getElementById('chatInput');
     const threadIdEl = document.getElementById('chatThreadId');
     const threadTypeEl = document.getElementById('chatThreadType');
-    let pollHandle = null;
+    const wsBase = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/chat`;
+    const currentUserId = "{{ request.user.uid|default:'' }}";
 
-    function getCSRF() {
-        const match = document.cookie.match(/csrftoken=([^;]+)/);
-        return match ? match[1] : '';
+    let pollHandle = null;
+    let socket = null;
+
+    function csrf() {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? m[1] : '';
     }
 
-    function togglePanel() {
+    toggleBtn.onclick = () => {
         panel.classList.toggle('hidden');
         if (!panel.classList.contains('hidden')) {
             loadSummary();
         } else {
             stopPolling();
+            closeSocket();
         }
-    }
+    };
 
     function stopPolling() {
-        if (pollHandle) {
-            clearInterval(pollHandle);
-            pollHandle = null;
-        }
+        if (pollHandle) clearInterval(pollHandle);
+        pollHandle = null;
     }
 
-    toggleBtn.addEventListener('click', togglePanel);
+    function startFallback(type, id) {
+        stopPolling();
+        pollHandle = setInterval(() => {
+            if (threadIdEl.value === String(id)) {
+                fetch(`/chat/widget/${type}/${id}/messages/`, { credentials: 'include' })
+                    .then(r => r.json())
+                    .then(d => renderMessages(d.messages || []));
+            }
+        }, 7000);
+    }
+
+    function closeSocket() {
+        if (socket) {
+            socket.onclose = null;
+            socket.onerror = null;
+            socket.close();
+        }
+        socket = null;
+    }
 
     function loadSummary() {
         fetch('/chat/widget/summary/', { credentials: 'include' })
             .then(r => r.json())
-            .then(data => {
-                renderList(channelsEl, data.channels || []);
-                renderList(dmsEl, data.dms || []);
-            })
-            .catch(() => {});
+            .then(d => {
+                renderList(channelsEl, d.channels || []);
+                renderList(dmsEl, d.dms || []);
+            });
     }
 
     function renderList(container, items) {
@@ -694,7 +868,12 @@
             const div = document.createElement('div');
             div.className = 'chat-list-item';
             div.textContent = item.display_name || item.name;
-            div.onclick = () => openThread(item.type, item.id, item.display_name || item.name);
+            div.onclick = () => {
+                document.querySelectorAll('.chat-list-item')
+                    .forEach(e => e.classList.remove('active'));
+                div.classList.add('active');
+                openThread(item.type, item.id, div.textContent);
+            };
             container.appendChild(div);
         });
     }
@@ -702,62 +881,107 @@
     function openThread(type, id, name) {
         threadIdEl.value = id;
         threadTypeEl.value = type;
-        titleEl.textContent = name;
+        titleEl.textContent = `💬 ${name}`;
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+
+        stopPolling();
+        closeSocket();
         fetch(`/chat/widget/${type}/${id}/messages/`, { credentials: 'include' })
             .then(r => r.json())
-            .then(data => {
-                renderMessages(data.messages || []);
-                startPolling();
-            });
+            .then(d => renderMessages(d.messages || []));
+        openSocket(type, id);
+    }
+
+    function appendMessage(m) {
+        const senderName = typeof m.sender === 'string' ? m.sender : (m.sender?.name || m.sender?.email || 'Someone');
+        const isMe = m.is_me || (m.sender_id && currentUserId && String(m.sender_id) === String(currentUserId)) || (m.sender?.id && String(m.sender.id) === String(currentUserId));
+        const div = document.createElement('div');
+        div.className = 'chat-message' + (isMe ? ' me' : '');
+        div.innerHTML = `
+            <div class="chat-meta">
+                ${senderName} · ${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            </div>
+            <div>${m.content}</div>
+        `;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
     function renderMessages(msgs) {
         messagesEl.innerHTML = '';
-        msgs.forEach(m => {
-            const div = document.createElement('div');
-            div.className = 'chat-message' + (m.is_me ? ' me' : '');
-            div.innerHTML = `<div class="chat-meta">${m.sender} &middot; ${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div><div>${m.content}</div>`;
-            messagesEl.appendChild(div);
-        });
+        msgs.forEach(appendMessage);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function startPolling() {
-        stopPolling();
-        pollHandle = setInterval(() => {
-            const id = threadIdEl.value;
-            const type = threadTypeEl.value;
-            if (!id || !type) return;
-            fetch(`/chat/widget/${type}/${id}/messages/`, { credentials: 'include' })
-                .then(r => r.json())
-                .then(data => renderMessages(data.messages || []));
-        }, 7000);
+    function openSocket(type, id) {
+        try {
+            socket = new WebSocket(`${wsBase}/${type}/${id}/`);
+        } catch (e) {
+            startFallback(type, id);
+            return;
+        }
+        socket.onmessage = evt => {
+            const data = JSON.parse(evt.data);
+            if (data.type === 'message' && threadIdEl.value === String(data.thread_id)) {
+                const m = data.message;
+                appendMessage({ sender: m.sender, content: m.content, created_at: m.created_at, sender_id: m.sender.id });
+            }
+        };
+        socket.onclose = () => {
+            socket = null;
+            startFallback(type, id);
+        };
+        socket.onerror = () => {
+            socket = null;
+            startFallback(type, id);
+        };
     }
 
-    sendBtn.addEventListener('click', sendMessage);
-    inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+    sendBtn.onclick = send;
+    inputEl.onkeydown = e => { if (e.key === 'Enter') send(); };
 
-    function sendMessage() {
-        const id = threadIdEl.value;
-        const type = threadTypeEl.value;
-        const content = inputEl.value.trim();
-        if (!id || !type || !content) return;
+    function send() {
+        if (!threadIdEl.value || !inputEl.value.trim()) return;
+
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'message',
+                thread_type: threadTypeEl.value,
+                thread_id: threadIdEl.value,
+                content: inputEl.value
+            }));
+            inputEl.value = '';
+            return;
+        }
+
         const body = new URLSearchParams();
-        body.append('thread_type', type);
-        body.append('thread_id', id);
-        body.append('content', content);
+        body.append('thread_type', threadTypeEl.value);
+        body.append('thread_id', threadIdEl.value);
+        body.append('content', inputEl.value);
+
         fetch('/chat/widget/send/', {
             method: 'POST',
             credentials: 'include',
-            headers: { 'X-CSRFToken': getCSRF(), 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'X-CSRFToken': csrf(),
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
             body: body.toString()
-        }).then(r => r.json()).then(() => {
+        }).then(r => r.json()).then(resp => {
             inputEl.value = '';
-            openThread(type, id, titleEl.textContent);
-        });
+            if (resp && resp.created_at) {
+                appendMessage({ sender: resp.sender, content: resp.content, created_at: resp.created_at, is_me: true });
+            } else {
+                openThread(threadTypeEl.value, threadIdEl.value, titleEl.textContent.replace('💬 ', ''));
+            }
+        }).catch(() => {});
     }
 })();
 </script>
+
 {% endif %}
+
+{% block body_extra %}{% endblock %}
 </body>
 </html>

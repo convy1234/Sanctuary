@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Tasks by Role{% endblock %}
+
+{% block head_extra %}
+<style>
+.role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+.role-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow-md);}
+.role-card h4{margin:0 0 4px;}
+.role-meta{color:var(--muted);font-size:13px;margin-bottom:10px;}
+.role-task{padding:10px 0;border-bottom:1px dashed #e2e8f0;}
+.role-task:last-child{border-bottom:none;}
+.pill-priority{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;}
+.pill-priority[data-level="5"]{background:#fee2e2;color:#b91c1c;}
+.pill-priority[data-level="4"]{background:#ffedd5;color:#c2410c;}
+.pill-priority[data-level="3"]{background:#fef3c7;color:#92400e;}
+.pill-priority[data-level="2"]{background:#e0f2fe;color:#0ea5e9;}
+.pill-priority[data-level="1"]{background:#ecfeff;color:#0f172a;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2" style="margin-bottom:12px;">
+    <div>
+      <h1 style="margin:0;">Tasks by Role</h1>
+      <p class="muted" style="margin:4px 0 0;">Quickly see responsibilities for heads, pastors, admins, workers, and volunteers.</p>
+    </div>
+  </div>
+
+  <div class="role-grid">
+    {% for block in role_blocks %}
+    <div class="role-card">
+      <h4>{{ block.title }}</h4>
+      <div class="role-meta">{{ block.count }} task{{ block.count|pluralize }}</div>
+      {% if block.tasks %}
+        {% for task in block.tasks %}
+        <div class="role-task">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-weight:700;">{{ task.title }}</div>
+            <span class="pill-priority" data-level="{{ task.priority }}">{{ task.get_priority_display }}</span>
+          </div>
+          <div class="muted" style="display:flex;justify-content:space-between;gap:8px;">
+            <span>Assignee: {{ task.assigned_to.member_profile.full_name|default:task.assigned_to.email }}</span>
+            {% if task.due_date %}<span>Due: {{ task.due_date|date:"M d" }}</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="muted">No tasks for this role.</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="role-card" style="border-style:dashed;">
+      <h4>Unassigned</h4>
+      <div class="role-meta">{{ unassigned.count }} task{{ unassigned.count|pluralize }}</div>
+      {% if unassigned %}
+        {% for task in unassigned %}
+        <div class="role-task">
+          <div style="font-weight:700;">{{ task.title }}</div>
+          <div class="muted">
+            <span class="pill-priority" data-level="{{ task.priority }}">{{ task.get_priority_display }}</span>
+            {% if task.due_date %} · Due {{ task.due_date|date:"M d" }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="muted">Everything assigned.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

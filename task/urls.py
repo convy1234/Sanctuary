@@ -36,4 +36,9 @@ urlpatterns = [
     path('api/task/widget/summary/', views.task_widget_summary_view, name='task_widget_summary'),
     path('api/task/widget/list/', views.task_widget_list_view, name='task_widget_list'),
     path('api/task/widget/create/', views.task_widget_create_view, name='task_widget_create'),
+    path('api/task/widget/convert/', views.task_convert_message_widget_view, name='task_convert_message_widget'),
+    path('api/task/widget/parents/', views.task_widget_parent_options_view, name='task_widget_parent_options'),
+
+    # Web management
+    path('roles/', views.task_role_board_view, name='task_role_board'),
 ]

@@ -1561,3 +1561,37 @@ def chat_widget_join_channel_view(request):
     req.save()
     ChannelMembership.objects.filter(channel=channel, user=request.user).delete()
     return JsonResponse({"joined": False, "status": "pending"})
+
+
+@login_required
+@require_POST
+def chat_widget_add_member_view(request):
+    """Add a member to a channel (session auth, limited to admins/pastors/owners or channel creators)."""
+    org = _get_org(request.user)
+    if not org:
+        return JsonResponse({"error": "No organization assigned"}, status=403)
+
+    channel_id = request.POST.get("channel_id")
+    user_id = request.POST.get("user_id")
+    if not channel_id or not user_id:
+        return JsonResponse({"error": "channel_id and user_id required"}, status=400)
+
+    channel = get_object_or_404(Channel, id=channel_id, organization=org)
+    target_user = get_object_or_404(User, uid=user_id, organization=org)
+
+    # Permission: admins/pastors/owners or channel creator
+    if not (
+        request.user.is_admin
+        or request.user.is_pastor
+        or request.user.is_owner
+        or channel.created_by == request.user
+    ):
+        return JsonResponse({"error": "You do not have permission to add members to this channel"}, status=403)
+
+    membership, created = ChannelMembership.objects.get_or_create(channel=channel, user=target_user)
+    return JsonResponse({
+        "added": True,
+        "channel_id": str(channel.id),
+        "user_id": str(target_user.uid),
+        "created": created,
+    })

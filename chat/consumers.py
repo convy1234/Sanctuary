@@ -24,7 +24,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
         
         try:
-            # Get query parameters
+            # Accept both query-string and path params for backwards compatibility
             query_string = self.scope.get('query_string', b'').decode()
             params = {}
             
@@ -34,13 +34,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         key, value = param.split('=', 1)
                         params[key] = value
             
-            self.dm_id = params.get('dm_id')
-            self.channel_id = params.get('channel_id')
+            # Path params from URLRouter
+            path_kwargs = self.scope.get('url_route', {}).get('kwargs', {}) or {}
+            thread_type = path_kwargs.get('thread_type')
+            thread_id = path_kwargs.get('thread_id')
             
-            # Determine room group name - FIXED: Use user.uid instead of user.id
+            self.dm_id = params.get('dm_id') or (thread_id if thread_type == 'dm' else None)
+            self.channel_id = params.get('channel_id') or (thread_id if thread_type == 'channel' else None)
+            
+            # Verify access before joining
             if self.dm_id:
+                is_participant = await self.verify_dm_participant(self.dm_id)
+                if not is_participant:
+                    await self.close(code=4003)
+                    return
                 self.room_group_name = f'dm_{self.dm_id}'
             elif self.channel_id:
+                can_access = await self.verify_channel_access(self.channel_id)
+                if not can_access:
+                    await self.close(code=4003)
+                    return
                 self.room_group_name = f'channel_{self.channel_id}'
             else:
                 # General connection - use user's uid (not id)
@@ -369,31 +382,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def serialize_message(self, message):
         """Serialize message for WebSocket transmission"""
-        # Get sender info
-        sender_name = message.sender.email.split('@')[0]
-        sender_avatar = None
-        
-        try:
-            member_profile = message.sender.member_profile
-            if member_profile:
-                sender_name = member_profile.full_name
-                if member_profile.photo:
-                    sender_avatar = f"/media/{member_profile.photo.name}"
-        except AttributeError:
-            pass
-        
-        return {
-            'id': str(message.id),
-            'content': message.content,
-            'sender': {
-                'id': str(message.sender.uid),  # FIXED: Use uid
-                'name': sender_name,
-                'avatar': sender_avatar,
-            },
-            'created_at': message.created_at.isoformat(),
-            'created_at_timestamp': int(message.created_at.timestamp() * 1000),
-            'reply_to': str(message.reply_to.id) if message.reply_to else None,
-        }
+        return message.serialize_for_socket()
 
     @database_sync_to_async
     def get_user_display_name(self, user):

@@ -51,7 +51,8 @@
 #chatThreadBody {
   padding: 16px;
   background: linear-gradient(#f8fafc, #f1f5f9);
-  overflow-y: auto;
+  overflow-y: scroll;
+  height: 500px;
 }
 
 .chat-bubble {
@@ -161,9 +162,55 @@
         <p style="color:#94a3b8;">No conversation selected.</p>
       </div>
 
-      <div class="chat-input-wrap">
-        <input id="chatMessageInput" placeholder="Type a message…" disabled>
-        <button id="chatSendButton" disabled>Send</button>
+      <div class="chat-input-wrap" style="flex-wrap:wrap;gap:10px;align-items:center;">
+        <div style="flex:1;display:flex;gap:10px;align-items:center;">
+          <input id="chatMessageInput" placeholder="Type a message…" disabled>
+          <button id="chatSendButton" disabled>Send</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;margin-top:6px;">
+          <input type="checkbox" id="markAsTask">
+          Mark as task
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Task modal -->
+<div id="taskModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:2000;">
+  <div style="background:#fff;padding:20px;max-width:520px;width:90%;border-radius:14px;box-shadow:0 20px 70px rgba(0,0,0,0.15);">
+    <div class="d-flex justify-content-between align-items-center" style="margin-bottom:12px;">
+      <div>
+        <h3 style="margin:0;">Create Task from Chat</h3>
+        <small id="taskModalContext" style="color:#64748b;">No chat selected</small>
+      </div>
+      <button id="taskModalClose" style="border:none;background:transparent;font-size:20px;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;color:#334155;">
+        <strong>Message:</strong>
+        <div id="taskModalMessagePreview" style="margin-top:4px;white-space:pre-wrap;"></div>
+      </div>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:14px;color:#0f172a;">
+        Title
+        <input id="taskModalTitle" placeholder="What needs to be done?" style="padding:10px;border:1px solid #e2e8f0;border-radius:10px;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:14px;color:#0f172a;">
+        Due date (optional)
+        <input id="taskModalDue" type="date" style="padding:10px;border:1px solid #e2e8f0;border-radius:10px;">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:14px;color:#0f172a;">
+        Parent task (optional ID)
+        <input id="taskModalParent" placeholder="Paste parent task ID if applicable" style="padding:10px;border:1px solid #e2e8f0;border-radius:10px;">
+      </label>
+      <label id="taskModalLinkChannelWrap" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#0f172a;">
+        <input type="checkbox" id="taskModalLinkChannel" checked>
+        Link to this channel context
+      </label>
+      <div id="taskModalStatus" style="color:#64748b;font-size:13px;min-height:18px;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:4px;">
+        <button id="taskModalCancel" style="border:1px solid #e2e8f0;background:#f8fafc;padding:10px 14px;border-radius:10px;color: #0f4c81;">Cancel</button>
+        <button id="taskModalSave" style="border:none;background:#0f4c81;color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;">Save Task</button>
       </div>
     </div>
   </div>
@@ -177,6 +224,9 @@ const sendUrl="/chat/widget/send/";
 const startDmUrl="/chat/widget/dm/start/";
 const joinUrl="/chat/widget/channel/join/";
 const wsBase=`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws/chat`;
+const taskConvertUrl="/task/api/task/widget/convert/";
+const taskParentOptionsUrl="/task/api/task/widget/parents/";
+const currentUserId="{{ request.user.uid }}";
 
 const channelsEl=document.getElementById("chatChannelsList");
 const dmsEl=document.getElementById("chatDMList");
@@ -186,10 +236,30 @@ const headerEl=document.getElementById("chatThreadHeader");
 const bodyEl=document.getElementById("chatThreadBody");
 const input=document.getElementById("chatMessageInput");
 const sendBtn=document.getElementById("chatSendButton");
+const markAsTask=document.getElementById("markAsTask");
+const taskModal=document.getElementById("taskModal");
+const taskModalTitle=document.getElementById("taskModalTitle");
+const taskModalDue=document.getElementById("taskModalDue");
+const taskModalClose=document.getElementById("taskModalClose");
+const taskModalCancel=document.getElementById("taskModalCancel");
+const taskModalSave=document.getElementById("taskModalSave");
+const taskModalStatus=document.getElementById("taskModalStatus");
+const taskModalContext=document.getElementById("taskModalContext");
+const taskModalMessagePreview=document.getElementById("taskModalMessagePreview");
+const taskModalParent=document.getElementById("taskModalParent");
+const taskModalParentList=document.createElement("datalist");
+taskModalParentList.id="taskParentOptions";
+taskModalParent.setAttribute("list", "taskParentOptions");
+document.body.appendChild(taskModalParentList);
+const taskModalLinkChannel=document.getElementById("taskModalLinkChannel");
+const taskModalLinkChannelWrap=document.getElementById("taskModalLinkChannelWrap");
 
 let active=null;
 let socket=null;
 let pollHandle=null;
+let pendingTaskRequest=null; // {content}
+let pendingMessageId=null;
+let allMembers=[];
 
 function csrf(){const m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:"";}
 
@@ -222,7 +292,8 @@ function load(){
     const filterFn=x=>(x.name||"").toLowerCase().includes(q)||(x.display_name||"").toLowerCase().includes(q);
     renderList((d.channels||[]).filter(filterFn),channelsEl,"channel");
     renderList((d.dms||[]).filter(filterFn),dmsEl,"dm");
-    renderList((d.members||[]).filter(m=>(m.name||"").toLowerCase().includes(q)),peopleEl,"person");
+    allMembers = d.members||[];
+    renderList(allMembers.filter(m=>(m.name||"").toLowerCase().includes(q)),peopleEl,"person");
   }).catch(()=>renderEmpty(channelsEl,"Unable to load chat data."));
 }
 
@@ -258,6 +329,7 @@ function open(type,id,title){
   fetch(messagesUrl(type,id),{credentials:"include"})
     .then(r=>r.json()).then(d=>renderMessages(d.messages||[]));
   openSocket(type,id);
+  toggleAddMemberVisibility();
 }
 
 function renderMessages(msgs){
@@ -268,8 +340,10 @@ function renderMessages(msgs){
 
 function appendMessage(m){
   const w=document.createElement("div");
-  w.className=`chat-bubble ${m.is_me?"me":"other"}`;
-  w.innerHTML=`<div class="chat-meta">${m.sender} · ${new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</div><div>${m.content}</div>`;
+  const senderName=typeof m.sender==="string"?m.sender:(m.sender?.name||m.sender?.email||"Someone");
+  const isMe= m.is_me || (m.sender_id && currentUserId && String(m.sender_id)===String(currentUserId)) || (m.sender?.id && String(m.sender.id)===String(currentUserId));
+  w.className=`chat-bubble ${isMe?"me":"other"}`;
+  w.innerHTML=`<div class="chat-meta">${senderName} · ${new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</div><div>${m.content}</div>`;
   bodyEl.appendChild(w);
   bodyEl.scrollTop=bodyEl.scrollHeight;
 }
@@ -280,17 +354,57 @@ function send(){
   f.append("thread_type",active.type);
   f.append("thread_id",active.id);
   f.append("content",input.value);
-  fetch(sendUrl,{
-    method:"POST",
-    headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
-    body:f.toString(),
-    credentials:"include"
-  }).then(r=>r.json()).then(resp=>{
+  const wantTask=!!markAsTask.checked;
+  pendingTaskRequest = wantTask ? {content:input.value.trim()} : null;
+  // If creating a task, always use HTTP so we get the message ID immediately
+  if(wantTask){
+    fetch(sendUrl,{
+      method:"POST",
+      headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+      body:f.toString(),
+      credentials:"include"
+    }).then(r=>r.json()).then(resp=>{
+      input.value=""; sendBtn.disabled=true;
+      if(resp && resp.created_at){
+        appendMessage({sender:resp.sender, content:resp.content, created_at:resp.created_at, is_me:true});
+        if(resp.id){
+          pendingMessageId = resp.id;
+          openTaskModal(resp.id, pendingTaskRequest?.content || "");
+        } else {
+          // If no id, just close modal safeguard
+          pendingTaskRequest=null;
+        }
+      }
+    }).catch(()=>{ pendingTaskRequest=null; });
+    return;
+  }
+
+  if(socket && socket.readyState===WebSocket.OPEN){
+    socket.send(JSON.stringify({
+      type:"message",
+      thread_type:active.type,
+      thread_id:active.id,
+      content:input.value
+    }));
     input.value=""; sendBtn.disabled=true;
-    if(resp && resp.created_at){
-      appendMessage({sender:resp.sender, content:resp.content, created_at:resp.created_at, is_me:true});
-    }
-  }).catch(()=>{});
+    if(!wantTask) pendingTaskRequest=null;
+  }else{
+    fetch(sendUrl,{
+      method:"POST",
+      headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+      body:f.toString(),
+      credentials:"include"
+    }).then(r=>r.json()).then(resp=>{
+      input.value=""; sendBtn.disabled=true;
+      if(resp && resp.created_at){
+        appendMessage({sender:resp.sender, content:resp.content, created_at:resp.created_at, is_me:true});
+        if(wantTask && resp.id){
+          pendingMessageId = resp.id;
+          openTaskModal(resp.id, pendingTaskRequest?.content || "");
+        }
+      }
+    }).catch(()=>{});
+  }
 }
 
 function startDM(p){
@@ -313,7 +427,10 @@ function openSocket(type,id){
     const data=JSON.parse(evt.data);
     if(data.type==="message" && active && data.thread_id===active.id){
       const m=data.message;
-      appendMessage({sender:m.sender, content:m.content, created_at:m.created_at, is_me:false});
+      appendMessage({sender:m.sender, content:m.content, created_at:m.created_at, sender_id:m.sender.id});
+    }else if(data.type==="message_sent" && pendingTaskRequest){
+      pendingMessageId = data.message_id;
+      openTaskModal(data.message_id, pendingTaskRequest.content || "");
     }
   };
   socket.onclose=()=>{socket=null; startFallback(type,id);};
@@ -332,10 +449,181 @@ function startFallback(type,id){
   },7000);
 }
 
+// Add member modal
+const addMemberModal = document.createElement("div");
+addMemberModal.id="addMemberModal";
+addMemberModal.style.display="none";
+addMemberModal.style.position="fixed";
+addMemberModal.style.inset="0";
+addMemberModal.style.background="rgba(15,23,42,0.5)";
+addMemberModal.style.backdropFilter="blur(4px)";
+addMemberModal.style.zIndex="2000";
+addMemberModal.style.alignItems="center";
+addMemberModal.style.justifyContent="center";
+addMemberModal.innerHTML=`
+  <div style="background:#fff;padding:18px;border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,0.15);width:320px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div>
+        <div style="font-weight:700;">Add member to channel</div>
+        <small id="addMemberChannelLabel" style="color:#64748b;"></small>
+      </div>
+      <button id="addMemberClose" style="border:none;background:transparent;font-size:18px;line-height:1;">×</button>
+    </div>
+    <label style="display:flex;flex-direction:column;gap:6px;font-size:14px;color:#0f172a;">
+      Select user
+      <select id="addMemberSelect" style="padding:10px;border:1px solid #e2e8f0;border-radius:10px;"></select>
+    </label>
+    <div id="addMemberStatus" style="color:#64748b;font-size:13px;min-height:18px;margin-top:6px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px;">
+      <button id="addMemberCancel" style="border:1px solid #e2e8f0;background:#f8fafc;padding:8px 12px;border-radius:10px;">Cancel</button>
+      <button id="addMemberSave" style="border:none;background:#0f4c81;color:#fff;padding:8px 12px;border-radius:10px;font-weight:700;">Add</button>
+    </div>
+  </div>
+`;
+document.body.appendChild(addMemberModal);
+const addMemberSelect=document.getElementById("addMemberSelect");
+const addMemberStatus=document.getElementById("addMemberStatus");
+const addMemberChannelLabel=document.getElementById("addMemberChannelLabel");
+document.getElementById("addMemberClose").onclick=()=>{addMemberModal.style.display="none";};
+document.getElementById("addMemberCancel").onclick=()=>{addMemberModal.style.display="none";};
+document.getElementById("addMemberSave").onclick=saveAddMember;
+
+const addMemberBtn=document.createElement("button");
+addMemberBtn.id="addMemberBtn";
+addMemberBtn.textContent="Add member";
+addMemberBtn.style.border="1px solid #e2e8f0";
+addMemberBtn.style.background="#f8fafc";
+addMemberBtn.style.padding="6px 10px";
+addMemberBtn.style.borderRadius="10px";
+addMemberBtn.style.fontSize="12px";
+addMemberBtn.style.marginLeft="10px";
+addMemberBtn.onclick=openAddMemberModal;
+headerEl.appendChild(addMemberBtn);
+
+function toggleAddMemberVisibility(){
+  addMemberBtn.style.display = (active && active.type==="channel") ? "inline-flex" : "none";
+}
+
+function openAddMemberModal(){
+  if(!active || active.type!=="channel") return;
+  addMemberSelect.innerHTML="";
+  allMembers.forEach(m=>{
+    const opt=document.createElement("option");
+    opt.value=m.id;
+    opt.textContent=`${m.name} (${m.email||""})`;
+    addMemberSelect.appendChild(opt);
+  });
+  addMemberChannelLabel.textContent=`Channel: ${active.id}`;
+  addMemberStatus.textContent="";
+  addMemberModal.style.display="flex";
+}
+
+function saveAddMember(){
+  if(!active || active.type!=="channel") return;
+  const userId=addMemberSelect.value;
+  if(!userId){addMemberStatus.textContent="Select a user.";return;}
+  const form=new URLSearchParams();
+  form.append("channel_id",active.id);
+  form.append("user_id",userId);
+  fetch("/chat/widget/channel/add-member/",{
+    method:"POST",
+    headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+    credentials:"include",
+    body:form.toString()
+  }).then(r=>r.json()).then(resp=>{
+    if(resp.added){
+      addMemberStatus.textContent="Added.";
+      setTimeout(()=>{addMemberModal.style.display="none";},600);
+    }else{
+      addMemberStatus.textContent=resp.error||"Unable to add.";
+    }
+  }).catch(()=>{addMemberStatus.textContent="Unable to add.";});
+}
+
+function openTaskModal(messageId,messageContent){
+  if(!active){
+    taskModalStatus.textContent="Select a channel or DM first.";
+    taskModal.style.display="flex";
+    return;
+  }
+  loadParentOptions();
+  taskModalStatus.textContent="";
+  taskModalTitle.value="";
+  taskModalDue.value="";
+  taskModalParent.value="";
+  pendingMessageId = messageId||pendingMessageId;
+  taskModalMessagePreview.textContent = messageContent || "";
+  taskModalContext.textContent=`Linking to ${active.type==="channel"?"channel":"direct message"} ${active.id}`;
+  taskModalLinkChannelWrap.style.display = active.type==="channel" ? "flex" : "none";
+  taskModalLinkChannel.checked = active.type==="channel";
+  taskModal.style.display="flex";
+}
+
+function closeTaskModal(){
+  taskModal.style.display="none";
+  pendingTaskRequest=null;
+  pendingMessageId=null;
+}
+
+function saveTaskFromModal(){
+  if(!active){
+    taskModalStatus.textContent="No chat selected.";
+    return;
+  }
+  if(!pendingMessageId){
+    taskModalStatus.textContent="No message to convert.";
+    return;
+  }
+  const title=(taskModalTitle.value||"").trim();
+  const body=new URLSearchParams();
+  body.append("message_id",pendingMessageId);
+  if(title) body.append("title",title);
+  if(taskModalDue.value) body.append("due_date",taskModalDue.value);
+  if(taskModalParent.value) body.append("parent_task",taskModalParent.value.trim());
+  if(active.type==="channel"){
+    body.append("link_channel", taskModalLinkChannel.checked ? "true" : "false");
+  }
+  fetch(taskConvertUrl,{
+    method:"POST",
+    headers:{"X-CSRFToken":csrf(),"Content-Type":"application/x-www-form-urlencoded"},
+    credentials:"include",
+    body:body.toString()
+  }).then(r=>r.json()).then(resp=>{
+    if(resp && resp.success){
+      closeTaskModal();
+    }else{
+      taskModalStatus.textContent=resp.error||"Could not create task";
+      // If backend says already converted or message missing, close to avoid stuck modal
+      // setTimeout(closeTaskModal,600);
+    }
+  }).catch(()=>{taskModalStatus.textContent="Could not create task"; setTimeout(closeTaskModal,600);});
+}
+
+let parentOptionsLoaded=false;
+function loadParentOptions(){
+  if(parentOptionsLoaded) return;
+  fetch(taskParentOptionsUrl,{credentials:"include"})
+    .then(r=>r.json())
+    .then(data=>{
+      if(!data || !data.tasks) return;
+      taskModalParentList.innerHTML="";
+      data.tasks.forEach(t=>{
+        const opt=document.createElement("option");
+        opt.value=t.id;
+        opt.label=t.title;
+        taskModalParentList.appendChild(opt);
+      });
+      parentOptionsLoaded=true;
+    }).catch(()=>{});
+}
+
 sendBtn.onclick=send;
 input.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();send();}};
 input.oninput=()=>{sendBtn.disabled=!input.value.trim();};
 searchEl.oninput=load;
+taskModalClose.onclick=closeTaskModal;
+taskModalCancel.onclick=closeTaskModal;
+taskModalSave.onclick=saveTaskFromModal;
 load();
 })();
 </script>
