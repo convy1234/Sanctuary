@@ -15,7 +15,9 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from church.views import get_user_organization
-from church.models import Voucher
+from church.models import Department,Campus
+from member.models import Member
+from accounting.models import Voucher,VoucherAttachment,VoucherTemplate
 # ==================== MOBILE VOUCHER API VIEWS ====================
 
 @api_view(['GET'])
@@ -84,7 +86,6 @@ def voucher_list_api_view(request):
             'date_prepared': v.date_prepared.isoformat() if v.date_prepared else None,
             'needed_by': v.needed_by.isoformat() if v.needed_by else None,
             'is_overdue': v.is_overdue,
-            'days_open': v.days_open,
         }
         for v in vouchers
     ]
@@ -402,7 +403,6 @@ def voucher_detail_api_view(request, voucher_id):
         'is_paid': voucher.is_paid,
         'is_pending': voucher.is_pending,
         'is_overdue': voucher.is_overdue,
-        'days_open': voucher.days_open,
         'total_items_count': voucher.total_items_count,
         
         # Requested by info - USING SAFE VERSION

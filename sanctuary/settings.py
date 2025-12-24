@@ -37,8 +37,10 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "daphne",
     "django.contrib.staticfiles",
     "channels",
+   
 
     # local apps
     "accounts",
@@ -47,6 +49,7 @@ INSTALLED_APPS = [
     "inventory",
     "accounting",
     "chat",
+    "task",
 
     # third-party
     "rest_framework",
@@ -177,6 +180,16 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     }
 }
+
+# for production
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],  # Redis server
+#         },
+#     },
+# }
 
 # settings.py
 ## settings.py

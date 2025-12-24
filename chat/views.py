@@ -24,6 +24,17 @@ User = get_user_model()
 channel_layer = get_channel_layer()
 
 
+def get_user_organization(user):
+    if hasattr(user, 'organization') and user.organization:
+        return user.organization
+    
+    # fallback if user belongs via profile or membership
+    if hasattr(user, 'profile') and hasattr(user.profile, 'organization'):
+        return user.profile.organization
+    
+    return None
+
+
 def channel_group_name(channel_id):
     return f"chat.channel.{channel_id}"
 
@@ -38,21 +49,46 @@ def display_name_for(user):
     return user.email or user.username
 
 
+# chat/views.py (update the broadcast_message function)
+
 def broadcast_message(thread_type, thread_id, msg_obj):
     """Send a message payload to websocket subscribers."""
+    
+    # Get sender info
+    sender_name = display_name_for(msg_obj.sender)
+    sender_avatar = None
+    
+    # Try to get avatar
+    try:
+        if hasattr(msg_obj.sender, 'member_profile') and msg_obj.sender.member_profile.photo:
+            # You'll need request context here, so we'll handle it in the consumer
+            pass
+    except AttributeError:
+        pass
+    
     payload = {
-        "type": "message",
-        "thread_type": thread_type,
-        "thread_id": str(thread_id),
-        "message": {
-            "id": str(msg_obj.id),
-            "sender": display_name_for(msg_obj.sender),
-            "content": msg_obj.content,
-            "created_at": msg_obj.created_at.isoformat(),
+        "id": str(msg_obj.id),
+        "content": msg_obj.content,
+        "sender": {
+            "id": str(msg_obj.sender.uid),
+            "name": sender_name,
+            "avatar": sender_avatar,
         },
+        "created_at": msg_obj.created_at.isoformat(),
+        "created_at_timestamp": int(msg_obj.created_at.timestamp() * 1000),
+        "reply_to": str(msg_obj.reply_to.id) if msg_obj.reply_to else None,
     }
-    group = channel_group_name(thread_id) if thread_type == "channel" else dm_group_name(thread_id)
-    async_to_sync(channel_layer.group_send)(group, {"type": "chat.message", "data": payload})
+    
+    group_name = f"{thread_type}_{thread_id}"
+    
+    async_to_sync(channel_layer.group_send)(
+        group_name,
+        {
+            "type": "chat_message",
+            "message": payload,
+        }
+    )
+
 
 
 
@@ -551,7 +587,7 @@ def channel_detail_api_view(request, channel_id):
 def channel_join_api_view(request, channel_id):
     """Join a channel (auto-join if public, otherwise create a join request)."""
     user = request.user
-    organization = get_user_organization(user)
+    organization = get_user_organization(request.user)
     if not organization:
         return Response({"success": False, "error": "No organization assigned"}, status=status.HTTP_400_BAD_REQUEST)
 

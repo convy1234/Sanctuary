@@ -9,7 +9,7 @@ from httpcore import request
 from .forms import SubscriptionPlanForm
 from .utils import send_invitation_email
 from accounts.serializers import InvitationAcceptSerializer, InvitationCreateSerializer
-from .models import Invitation, Organization, OrganizationSubscription, SubscriptionPlan
+from .models import Invitation, Organization, OrganizationSubscription, SubscriptionPlan,Family,Department
 
 
 @login_required
@@ -315,6 +315,7 @@ from rest_framework import status, viewsets, filters
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import MemberSerializer, DepartmentSerializer, FamilySerializer, CampusSerializer
+from.models import Member, Department, Family, Campus
 
 # Keep your existing web views, but add these API views:
 
@@ -1480,6 +1481,11 @@ def family_remove_members_api_view(request, family_id):
     })
 # In your church/views.py
 
+from inventory.models import InventoryItem, InventoryCategory, InventoryVendor,InventoryTransaction
+import json
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound 
+from django.contrib import messages
 
 # inventory/views.py (UPDATED)
 @login_required
@@ -1927,6 +1933,14 @@ def voucher_list_api_view(request):
         'count': len(data),
         'vouchers': data
     })
+
+
+
+
+
+from accounting.models import Voucher, VoucherTemplate
+
+
 
     
 @api_view(['GET', 'POST'])  # Allow both GET and POST

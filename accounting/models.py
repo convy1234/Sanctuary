@@ -64,7 +64,6 @@ class VoucherTemplate(models.Model):
                 id=self.id
             ).update(is_default=False)
         super().save(*args, **kwargs)
-
 class Voucher(models.Model):
     """Simple voucher system for funds/equipment requests."""
 
@@ -197,6 +196,122 @@ class Voucher(models.Model):
             return timezone.now().date() > self.needed_by
         return False
 
+    @property
+    def is_approved(self):
+        """Check if voucher is approved."""
+        return self.status == "approved"
+
+    @property
+    def is_paid(self):
+        """Check if voucher is paid."""
+        return self.status == "paid"
+
+    @property
+    def is_pending(self):
+        """Check if voucher is pending approval."""
+        return self.status in ["draft", "submitted"]
+
+    @property
+    def is_rejected(self):
+        """Check if voucher is rejected."""
+        return self.status == "rejected"
+
+    @property
+    def is_completed(self):
+        """Check if voucher is completed."""
+        return self.status == "completed"
+
+    @property
+    def is_cancelled(self):
+        """Check if voucher is cancelled."""
+        return self.status == "cancelled"
+
+    @property
+    def is_submitted(self):
+        """Check if voucher is submitted."""
+        return self.status == "submitted"
+
+    @property
+    def is_draft(self):
+        """Check if voucher is draft."""
+        return self.status == "draft"
+
+    @property
+    def can_edit(self):
+        """Check if voucher can be edited."""
+        return self.status in ["draft", "submitted"]
+
+    @property
+    def can_submit(self):
+        """Check if voucher can be submitted."""
+        return self.status == "draft"
+
+    @property
+    def can_approve(self):
+        """Check if voucher can be approved."""
+        return self.status in ["submitted", "draft"]
+
+    @property
+    def can_reject(self):
+        """Check if voucher can be rejected."""
+        return self.status in ["submitted", "draft"]
+
+    @property
+    def can_mark_as_paid(self):
+        """Check if voucher can be marked as paid."""
+        return self.status == "approved"
+
+    @property
+    def can_complete(self):
+        """Check if voucher can be completed."""
+        return self.status == "paid"
+
+    @property
+    def can_cancel(self):
+        """Check if voucher can be cancelled."""
+        return self.status not in ["completed", "cancelled"]
+
+    @property
+    def formatted_voucher_number(self):
+        """Get formatted voucher number with organization prefix."""
+        return self.voucher_number
+
+    @property
+    def display_status(self):
+        """Get display status with colors/indicators."""
+        status_map = {
+            "draft": ("Draft", "secondary"),
+            "submitted": ("Submitted", "info"),
+            "approved": ("Approved", "success"),
+            "rejected": ("Rejected", "danger"),
+            "paid": ("Paid", "primary"),
+            "completed": ("Completed", "success"),
+            "cancelled": ("Cancelled", "dark"),
+        }
+        return status_map.get(self.status, (self.get_status_display(), "secondary"))
+
+    @property
+    def has_finance_approval(self):
+        """Check if voucher has finance approval."""
+        return self.approved_by is not None and self.approved_date is not None
+
+    @property
+    def has_payment_info(self):
+        """Check if voucher has payment information."""
+        return self.paid_date is not None and self.paid_amount is not None
+
+    @property
+    def remaining_balance(self):
+        """Calculate remaining balance if approved amount differs from requested."""
+        if self.approved_amount and self.amount_in_figures:
+            return self.amount_in_figures - self.approved_amount
+        return Decimal(0)
+
+    @property
+    def needs_attention(self):
+        """Check if voucher needs attention (overdue or pending)."""
+        return self.is_overdue or (self.is_pending and self.needed_by and timezone.now().date() >= self.needed_by)
+
     def submit_for_approval(self):
         if self.status == "draft":
             self.status = "submitted"
@@ -253,6 +368,23 @@ class Voucher(models.Model):
             self.save()
             return True
         return False
+
+    def mark_as_completed(self):
+        if self.status == "paid":
+            self.status = "completed"
+            self.save()
+            return True
+        return False
+
+    def cancel(self, reason=""):
+        if self.status not in ["completed", "cancelled"]:
+            previous_status = self.status
+            self.status = "cancelled"
+            if reason:
+                self.finance_remarks = f"{self.finance_remarks}\nCancelled: {reason}".strip()
+            self.save()
+            return True, previous_status
+        return False, None
 
 
 class VoucherAttachment(models.Model):
