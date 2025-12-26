@@ -3,71 +3,454 @@
 
 {% block head_extra %}
 <style>
-.role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
-.role-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow-md);}
-.role-card h4{margin:0 0 4px;}
-.role-meta{color:var(--muted);font-size:13px;margin-bottom:10px;}
-.role-task{padding:10px 0;border-bottom:1px dashed #e2e8f0;}
-.role-task:last-child{border-bottom:none;}
-.pill-priority{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;}
-.pill-priority[data-level="5"]{background:#fee2e2;color:#b91c1c;}
-.pill-priority[data-level="4"]{background:#ffedd5;color:#c2410c;}
-.pill-priority[data-level="3"]{background:#fef3c7;color:#92400e;}
-.pill-priority[data-level="2"]{background:#e0f2fe;color:#0ea5e9;}
-.pill-priority[data-level="1"]{background:#ecfeff;color:#0f172a;}
+:root {
+    --role-1: #4f46e5;
+    --role-2: #059669;
+    --role-3: #dc2626;
+    --role-4: #ea580c;
+    --role-5: #7c3aed;
+    --role-unassigned: #6b7280;
+}
+
+.role-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+    margin-top: 20px;
+}
+
+.role-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid;
+}
+
+.role-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+}
+
+.role-title-container {
+    flex: 1;
+}
+
+.role-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.role-count {
+    display: inline-block;
+    background: rgba(0,0,0,0.08);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.role-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    border: 1px solid #e5e7eb;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.role-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.role-card.unassigned {
+    border-style: dashed;
+    border-color: #d1d5db;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.role-tasks {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 400px;
+    padding-right: 4px;
+}
+
+.role-task {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    border-left: 4px solid;
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0;
+}
+
+.role-task:hover {
+    background: #f1f5f9;
+    transform: translateX(4px);
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.task-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    flex: 1;
+}
+
+.priority-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.priority-5 { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.priority-4 { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+.priority-3 { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
+.priority-2 { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; }
+.priority-1 { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+.task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.assignee {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.assignee-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--role-1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.due-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.due-date.overdue {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
+
+.empty-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.header-content {
+    flex: 1;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.view-toggle {
+    display: flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 12px;
+}
+
+.view-toggle button {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-toggle button.active {
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+/* Role-specific colors */
+.role-heads .role-icon { background: var(--role-1); }
+.role-pastors .role-icon { background: var(--role-2); }
+.role-admins .role-icon { background: var(--role-3); }
+.role-workers .role-icon { background: var(--role-4); }
+.role-volunteers .role-icon { background: var(--role-5); }
+.role-unassigned .role-icon { background: var(--role-unassigned); }
+
+.role-heads .role-header { border-color: var(--role-1); }
+.role-pastors .role-header { border-color: var(--role-2); }
+.role-admins .role-header { border-color: var(--role-3); }
+.role-workers .role-header { border-color: var(--role-4); }
+.role-volunteers .role-header { border-color: var(--role-5); }
+.role-unassigned .role-header { border-color: var(--role-unassigned); }
+
+.role-heads .role-task { border-left-color: var(--role-1); }
+.role-pastors .role-task { border-left-color: var(--role-2); }
+.role-admins .role-task { border-left-color: var(--role-3); }
+.role-workers .role-task { border-left-color: var(--role-4); }
+.role-volunteers .role-task { border-left-color: var(--role-5); }
+.role-unassigned .role-task { border-left-color: var(--role-unassigned); }
+
+/* Scrollbar styling */
+.role-tasks::-webkit-scrollbar {
+    width: 4px;
+}
+
+.role-tasks::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.role-tasks::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.role-tasks::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .role-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .page-header {
+        flex-direction: column;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="card">
-  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2" style="margin-bottom:12px;">
-    <div>
-      <h1 style="margin:0;">Tasks by Role</h1>
-      <p class="muted" style="margin:4px 0 0;">Quickly see responsibilities for heads, pastors, admins, workers, and volunteers.</p>
+    <div class="page-header">
+        <div class="header-content">
+            <h1 style="margin: 0 0 8px 0;">Tasks by Role</h1>
+            <p class="muted" style="margin: 0;">Quick overview of responsibilities across different roles in the organization.</p>
+        </div>
+        <div class="header-actions">
+            <div class="view-toggle">
+                <button class="active">Board View</button>
+                <button>List View</button>
+            </div>
+            <button class="filter-btn">
+                <span>Filter</span>
+                <span style="font-size: 12px;">▼</span>
+            </button>
+        </div>
     </div>
-  </div>
 
-  <div class="role-grid">
-    {% for block in role_blocks %}
-    <div class="role-card">
-      <h4>{{ block.title }}</h4>
-      <div class="role-meta">{{ block.count }} task{{ block.count|pluralize }}</div>
-      {% if block.tasks %}
-        {% for task in block.tasks %}
-        <div class="role-task">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <div style="font-weight:700;">{{ task.title }}</div>
-            <span class="pill-priority" data-level="{{ task.priority }}">{{ task.get_priority_display }}</span>
-          </div>
-          <div class="muted" style="display:flex;justify-content:space-between;gap:8px;">
-            <span>Assignee: {{ task.assigned_to.member_profile.full_name|default:task.assigned_to.email }}</span>
-            {% if task.due_date %}<span>Due: {{ task.due_date|date:"M d" }}</span>{% endif %}
-          </div>
+    <div class="role-grid">
+        {% for block in role_blocks %}
+        <div class="role-card role-{{ block.title|lower }}">
+            <div class="role-header">
+                <div class="role-icon">
+                    {% if block.title == "Heads" %}👑
+                    {% elif block.title == "Pastors" %}🙏
+                    {% elif block.title == "Admins" %}💼
+                    {% elif block.title == "Workers" %}🔧
+                    {% elif block.title == "Volunteers" %}🤝
+                    {% endif %}
+                </div>
+                <div class="role-title-container">
+                    <h3 class="role-title">{{ block.title }}</h3>
+                    <span class="role-count">{{ block.count }} task{{ block.count|pluralize }}</span>
+                </div>
+            </div>
+            
+            <div class="role-tasks">
+                {% if block.tasks %}
+                    {% for task in block.tasks %}
+                    <div class="role-task">
+                        <div class="task-header">
+                            <div class="task-title">{{ task.title }}</div>
+                            <span class="priority-badge priority-{{ task.priority }}">
+                                {{ task.get_priority_display }}
+                            </span>
+                        </div>
+                        <div class="task-meta">
+                            <div class="assignee">
+                                <div class="assignee-avatar">
+                                    {{ task.assigned_to.member_profile.full_name|first|default:task.assigned_to.email|first }}
+                                </div>
+                                <span>{{ task.assigned_to.member_profile.full_name|default:task.assigned_to.email|truncatechars:20 }}</span>
+                            </div>
+                            {% if task.due_date %}
+                            <div class="due-date {% if task.is_overdue %}overdue{% endif %}">
+                                <span>📅</span>
+                                <span>{{ task.due_date|date:"M d" }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <p>No tasks assigned</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
-      {% else %}
-        <div class="muted">No tasks for this role.</div>
-      {% endif %}
-    </div>
-    {% endfor %}
 
-    <div class="role-card" style="border-style:dashed;">
-      <h4>Unassigned</h4>
-      <div class="role-meta">{{ unassigned.count }} task{{ unassigned.count|pluralize }}</div>
-      {% if unassigned %}
-        {% for task in unassigned %}
-        <div class="role-task">
-          <div style="font-weight:700;">{{ task.title }}</div>
-          <div class="muted">
-            <span class="pill-priority" data-level="{{ task.priority }}">{{ task.get_priority_display }}</span>
-            {% if task.due_date %} · Due {{ task.due_date|date:"M d" }}{% endif %}
-          </div>
+        <div class="role-card role-unassigned unassigned">
+            <div class="role-header">
+                <div class="role-icon">❓</div>
+                <div class="role-title-container">
+                    <h3 class="role-title">Unassigned</h3>
+                    <span class="role-count">{{ unassigned|length }} task{{ unassigned|length|pluralize }}</span>
+                </div>
+            </div>
+            
+            <div class="role-tasks">
+                {% if unassigned %}
+                    {% for task in unassigned %}
+                    <div class="role-task">
+                        <div class="task-header">
+                            <div class="task-title">{{ task.title }}</div>
+                            <span class="priority-badge priority-{{ task.priority }}">
+                                {{ task.get_priority_display }}
+                            </span>
+                        </div>
+                        <div class="task-meta">
+                            {% if task.due_date %}
+                            <div class="due-date {% if task.is_overdue %}overdue{% endif %}">
+                                <span>📅</span>
+                                <span>{{ task.due_date|date:"M d, Y" }}</span>
+                            </div>
+                            {% endif %}
+                            <span>No assignee</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">🎉</div>
+                        <p>All tasks are assigned!</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-        {% endfor %}
-      {% else %}
-        <div class="muted">Everything assigned.</div>
-      {% endif %}
     </div>
-  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects
+    const roleCards = document.querySelectorAll('.role-card');
+    roleCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.zIndex = '10';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.zIndex = '1';
+        });
+    });
+
+    // Simple view toggle
+    const viewButtons = document.querySelectorAll('.view-toggle button');
+    viewButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            viewButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Check for overdue tasks (example - you might want to compute this server-side)
+    const dueDates = document.querySelectorAll('.due-date');
+    const today = new Date();
+    dueDates.forEach(element => {
+        const dateText = element.textContent;
+        // This is a simple check - you should implement proper date comparison
+        if (dateText.includes('Overdue')) {
+            element.classList.add('overdue');
+        }
+    });
+});
+</script>
 {% endblock %}

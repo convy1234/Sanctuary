@@ -2267,7 +2267,7 @@ def task_widget_create_view(request):
                 "name": display,
                 "email": user.email,
             })
-        
+
         # Get labels
         labels = TaskLabel.objects.filter(organization=org).values('id', 'name', 'color')
         
@@ -2440,6 +2440,83 @@ def task_widget_parent_options_view(request):
         for t in tasks
     ]
     return JsonResponse({"tasks": data})
+
+
+@login_required
+@require_POST
+def task_widget_update_status_view(request, task_id):
+    """Session-auth: update task status/progress."""
+    org = getattr(request.user, "organization", None)
+    if not org:
+        return JsonResponse({"error": "No organization assigned"}, status=403)
+    
+    try:
+        task = Task.objects.get(id=task_id, organization=org)
+    except Task.DoesNotExist:
+        return JsonResponse({"error": "Task not found"}, status=404)
+    
+    # Privacy: allow if admin/pastor/owner or involved
+    if not (request.user.is_admin or request.user.is_pastor or request.user.is_owner or task.created_by == request.user or task.assigned_to == request.user):
+        return JsonResponse({"error": "Not permitted"}, status=403)
+    
+    status_val = request.POST.get("status")
+    progress_val = request.POST.get("progress")
+    changed = False
+    
+    if status_val in dict(TaskStatus.choices):
+        task.status = status_val
+        changed = True
+        if status_val == TaskStatus.COMPLETED:
+            task.progress = 100
+    
+    if progress_val:
+        try:
+            progress_int = int(progress_val)
+            progress_int = max(0, min(100, progress_int))
+            task.progress = progress_int
+            changed = True
+            if progress_int == 100:
+                task.status = TaskStatus.COMPLETED
+        except ValueError:
+            pass
+    
+    if changed:
+        task.save()
+        return JsonResponse({"success": True, "status": task.status, "progress": task.progress})
+    return JsonResponse({"error": "No change applied"}, status=400)
+
+
+@login_required
+@require_POST
+def task_widget_comment_view(request, task_id):
+    """Session-auth: add a comment/update."""
+    org = getattr(request.user, "organization", None)
+    if not org:
+        return JsonResponse({"error": "No organization assigned"}, status=403)
+    
+    try:
+        task = Task.objects.get(id=task_id, organization=org)
+    except Task.DoesNotExist:
+        return JsonResponse({"error": "Task not found"}, status=404)
+    
+    # Privacy: allow if admin/pastor/owner or involved
+    if not (request.user.is_admin or request.user.is_pastor or request.user.is_owner or task.created_by == request.user or task.assigned_to == request.user):
+        return JsonResponse({"error": "Not permitted"}, status=403)
+    
+    content = (request.POST.get("content") or "").strip()
+    if not content:
+        return JsonResponse({"error": "Content required"}, status=400)
+    
+    comment = TaskComment.objects.create(task=task, author=request.user, content=content)
+    return JsonResponse({
+        "success": True,
+        "comment": {
+            "id": str(comment.id),
+            "content": comment.content,
+            "author": request.user.email,
+            "created_at": comment.created_at.isoformat(),
+        }
+    })
 
 
 @login_required

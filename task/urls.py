@@ -38,6 +38,8 @@ urlpatterns = [
     path('api/task/widget/create/', views.task_widget_create_view, name='task_widget_create'),
     path('api/task/widget/convert/', views.task_convert_message_widget_view, name='task_convert_message_widget'),
     path('api/task/widget/parents/', views.task_widget_parent_options_view, name='task_widget_parent_options'),
+    path('api/task/widget/<uuid:task_id>/status/', views.task_widget_update_status_view, name='task_widget_update_status'),
+    path('api/task/widget/<uuid:task_id>/comment/', views.task_widget_comment_view, name='task_widget_comment'),
 
     # Web management
     path('roles/', views.task_role_board_view, name='task_role_board'),
